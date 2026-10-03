@@ -1,0 +1,23 @@
+# Datos, documentos y resultados locales
+/data/
+/docs/
+/outputs/
+
+# Entornos virtuales de Python
+.venv/
+venv/
+env/
+.env/
+ENV/
+
+# Cachés y archivos compilados de Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Configuración local y secretos
+.env
+.env.*
+!.env.example
