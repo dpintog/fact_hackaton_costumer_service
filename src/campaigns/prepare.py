@@ -566,6 +566,10 @@ def verify(root, out, check_sources=True):
                 raise AssertionError("El artefacto cambió: " + name)
     if check_sources:
         manifest = json.loads((out / "source_manifest.json").read_text(encoding="utf-8"))
+        expected_core = {s["path"] for s in manifest if s["path"] in {"data/customers.csv", "data/marketing_campaigns.csv"} or s["path"].startswith("data/campaign_sends/")}
+        current_core = {"data/customers.csv", "data/marketing_campaigns.csv"} | {p.relative_to(root).as_posix() for p in (root / "data/campaign_sends").rglob("*.csv")}
+        if current_core != expected_core:
+            raise AssertionError("El inventario de fuentes cambió; reconstruir el día 1")
         for source in manifest:
             if digest(root / source["path"]) != source["sha256"]:
                 raise AssertionError("La fuente cambió: " + source["path"])
