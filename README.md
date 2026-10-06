@@ -6,7 +6,11 @@ Matching the filters **does not demonstrate financial benefit or actual inactivi
 
 ## Quick demo for hackathon judges (5 minutes)
 
-[Watch the demo video](demo_video.mp4)https://github.com/dpintog/fact_hackaton_costumer_service/blob/feature/deployment/demo_video.mp4
+
+
+https://github.com/user-attachments/assets/a7b768cf-326e-4d2a-9940-7df50553f34c
+
+
 
 **[Open the deployed app](https://ca-camps-ahorro.politedune-96575e92.northcentralus.azurecontainerapps.io)** — no installation or Azure account is needed. Sign in with these hackathon demo accounts:
 
