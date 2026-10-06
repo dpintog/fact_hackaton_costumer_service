@@ -1,0 +1,24 @@
+# Local data, documents, and outputs
+/data/
+/docs/
+/outputs/
+
+# Python virtual environments
+.venv/
+venv/
+env/
+.env/
+ENV/
+
+# Python caches and compiled files
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Local configuration and secrets
+.azure-project/
+.env
+.env.*
+!.env.example

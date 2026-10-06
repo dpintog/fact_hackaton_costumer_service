@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "dataset_version": "heldout-v1",
+  "case_count": 48,
+  "family_count": 24,
+  "sha256": "46f5c0cced884928d4bd9052346135acb94e1f0ef1939726cf30ed13a33cb167",
+  "data_classification": "team_generated_synthetic",
+  "label_quality": "one independent team author; deterministic outcome rubric; no bank-domain reviewer",
+  "freeze_date": "2026-10-04",
+  "split_policy": "All translated members of each heldout family stay heldout; training/development families authored independently; no thresholds tuned on this dataset."
+}

@@ -1,0 +1,38 @@
+{
+  "schema_version": 1,
+  "policy_version": "day1-1.0",
+  "product": "Cuenta Ahorro",
+  "country": "Colombia",
+  "demo_at": "2026-03-01T12:00:00",
+  "demo_timezone_assumption": "America/Bogota",
+  "dataset_cutoff": "2026-06-17T23:59:59",
+  "mode": "historical_replay",
+  "historical_replay_campaign_ids": ["CMP-PHK8DTE4KLJO"],
+  "require_explicit_country": true,
+  "require_explicit_segment": true,
+  "require_description": true,
+  "require_marketing_consent": true,
+  "require_profile_not_after_demo": true,
+  "customer_statuses_by_objective": {
+    "Reactivation": ["Inactive"],
+    "Acquisition": ["Active"],
+    "Cross-sell": ["Active"],
+    "Retention": ["Active"],
+    "Up-sell": ["Active"]
+  },
+  "frequency_limits": [
+    {"days": 7, "max_delivered_messages": 1},
+    {"days": 30, "max_delivered_messages": 3}
+  ],
+  "selection_order": "campaign_id_then_customer_id",
+  "data_classification": "organizer_synthetic",
+  "execution_date": "2026-10-01",
+  "decision_basis": {
+    "product": "user_choice",
+    "country": "user_choice",
+    "historical_replay": "user_choice",
+    "demo_at": "chosen_inside_source_campaign_window",
+    "status_rules": "team_defined_demo_policy_not_bank_policy",
+    "frequency_limits": "team_defined_demo_policy_not_bank_policy"
+  }
+}
