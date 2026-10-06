@@ -1,0 +1,8 @@
+schema_version: 1
+intent_classifier:
+  provider: clef
+  router: hybrid
+  clef:
+    timeout_seconds: 15
+    confidence_threshold: 0.50
+    margin_threshold: 0.10

@@ -12,6 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "src"))
 from campaigns.clef import ClefModel
 from campaigns.configuration import create_intent_router, load_intent_config
+from campaigns.secrets import KeyVaultError
 
 
 class ConfigurationTests(unittest.TestCase):
@@ -73,6 +74,47 @@ class ConfigurationTests(unittest.TestCase):
             self.assertEqual(router.predict("¿Cuál es mi saldo?")["model_provider"], "baseline")
         env.assert_not_called()
         load.assert_not_called()
+
+    def test_clef_accepts_container_environment_without_a_dotenv_file(self):
+        self.write_config("clef")
+        with patch.dict(os.environ, {"clef_api_token": "injected-token", "clef_Account_ID": "injected-account"}), \
+                patch("campaigns.configuration.dotenv_values") as dotenv, \
+                patch("campaigns.configuration.ClefModel") as model:
+            create_intent_router(self.config, root=self.root)
+        dotenv.assert_not_called()
+        self.assertEqual(model.call_args.args, ("injected-token", "injected-account"))
+
+    def test_clef_uses_keyvault_in_cloud_without_reading_local_credentials(self):
+        self.write_config("clef")
+        (self.root / ".env").write_text("clef_api_token=local-token\nclef_Account_ID=local-account\n", encoding="utf-8")
+        with patch.dict(os.environ, {"AZURE_KEY_VAULT_URL": "https://testvault.vault.azure.net/"}), \
+                patch("campaigns.configuration.read_keyvault_secrets", return_value={
+                    "clef_api_token": "vault-token", "clef_Account_ID": "vault-account"}) as vault, \
+                patch("campaigns.configuration.dotenv_values") as dotenv, \
+                patch("campaigns.configuration.ClefModel") as model:
+            create_intent_router(self.config, root=self.root)
+        vault.assert_called_once_with(("clef_api_token", "clef_Account_ID"))
+        dotenv.assert_not_called()
+        self.assertEqual(model.call_args.args, ("vault-token", "vault-account"))
+
+    def test_keyvault_failure_does_not_fall_back_to_local_credentials(self):
+        self.write_config("clef")
+        with patch.dict(os.environ, {"AZURE_KEY_VAULT_URL": "https://testvault.vault.azure.net/"}), \
+                patch("campaigns.configuration.read_keyvault_secrets", side_effect=KeyVaultError("Access failed")), \
+                patch("campaigns.configuration.dotenv_values") as dotenv:
+            with self.assertRaises(KeyVaultError):
+                create_intent_router(self.config, root=self.root)
+        dotenv.assert_not_called()
+
+    def test_baseline_and_tfidf_do_not_contact_keyvault(self):
+        with patch.dict(os.environ, {"AZURE_KEY_VAULT_URL": "https://testvault.vault.azure.net/"}), \
+                patch("campaigns.configuration.read_keyvault_secrets") as vault, \
+                patch("campaigns.configuration.IntentModel.load"):
+            self.write_config("clef", router="baseline")
+            create_intent_router(self.config, root=self.root)
+            self.write_config("tfidf")
+            create_intent_router(self.config, root=self.root)
+        vault.assert_not_called()
 
     def test_missing_credentials_and_inapplicable_model_override_are_clear_errors(self):
         self.write_config("clef")

@@ -15,6 +15,8 @@ def main():
     from campaigns.store import DataStore
     parser = argparse.ArgumentParser(description="Campañas y atención de ahorro")
     parser.add_argument("--port", type=int, default=8002)
+    parser.add_argument("--host", choices=("127.0.0.1", "0.0.0.0"), default="127.0.0.1")
+    parser.add_argument("--public-origin", help="Origen HTTPS permitido para el despliegue en contenedor")
     parser.add_argument("--database", type=Path, default=ROOT / "outputs/phase2/prepared.sqlite")
     parser.add_argument("--config", type=Path, default=DEFAULT_CONFIG,
                         help="YAML de selección del clasificador de intenciones")
@@ -36,8 +38,9 @@ def main():
     catalog = json.loads(args.scenarios.read_text(encoding="utf-8"))
     legacy = ROOT / "outputs/app/demo_credentials.json" if args.credentials == ROOT / "outputs/app/access_credentials.json" else None
     credential_path = bootstrap_demo_users(service, args.credentials, customer_ids, catalog, legacy)
-    server = make_server(service, ROOT / "web", port=args.port, scenarios_path=args.scenarios)
-    print(f"Aplicación: http://127.0.0.1:{server.server_port}")
+    server = make_server(service, ROOT / "web", host=args.host, port=args.port,
+                         scenarios_path=args.scenarios, public_origin=args.public_origin)
+    print(f"Aplicación: {args.public_origin or f'http://127.0.0.1:{server.server_port}'}")
     print(f"Clasificador: {getattr(router.model, 'provider', 'tfidf') if router.model else 'baseline'}; router: {router.mode}")
     print(f"Credenciales locales: {credential_path.resolve()}")
     print("El archivo de credenciales es privado local; no lo compartas ni publiques.")

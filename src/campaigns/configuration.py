@@ -10,6 +10,7 @@ import yaml
 from .clef import ClefModel
 from .intents import IntentModel
 from .service import IntentRouter
+from .secrets import read_keyvault_secrets
 
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -78,9 +79,13 @@ def create_intent_router(path=DEFAULT_CONFIG, *, root=ROOT, model_path=None, mod
     else:
         if model_path is not None:
             raise ValueError("--model solo se aplica al proveedor tfidf")
-        env_path = root / ".env"
-        credentials = dotenv_values(env_path, encoding="utf-8-sig") if env_path.is_file() else {}
-        token = os.environ.get("clef_api_token", credentials.get("clef_api_token"))
-        account_id = os.environ.get("clef_Account_ID", credentials.get("clef_Account_ID"))
+        if os.environ.get("AZURE_KEY_VAULT_URL") is not None:
+            credentials = read_keyvault_secrets(("clef_api_token", "clef_Account_ID"))
+            token, account_id = credentials["clef_api_token"], credentials["clef_Account_ID"]
+        else:
+            env_path = root / ".env"
+            credentials = dotenv_values(env_path, encoding="utf-8-sig") if env_path.is_file() else {}
+            token = os.environ.get("clef_api_token", credentials.get("clef_api_token"))
+            account_id = os.environ.get("clef_Account_ID", credentials.get("clef_Account_ID"))
         model = ClefModel(token, account_id, **config["clef"])
     return IntentRouter(model, router_mode)

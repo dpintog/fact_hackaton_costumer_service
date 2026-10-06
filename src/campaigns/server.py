@@ -1,4 +1,4 @@
-"""Loopback HTTP adapter. Credentials and fixture controls are never public APIs."""
+"""HTTP adapter with explicit origin checks and no credential or fixture APIs."""
 from __future__ import annotations
 
 import json
@@ -17,7 +17,7 @@ from .operations import CampaignOperations
 
 class LocalHTTPServer(ThreadingHTTPServer):
     # Windows SO_REUSEADDR can otherwise admit two listeners on one endpoint.
-    allow_reuse_address = False
+    allow_reuse_address = not hasattr(socket, "SO_EXCLUSIVEADDRUSE")
 
     def server_bind(self):
         if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
@@ -59,9 +59,18 @@ def bootstrap_demo_users(service, credentials_path, customer_ids, scenario_catal
     return path
 
 
-def make_server(service, web_root, host="127.0.0.1", port=8002, scenarios_path=None):
-    if host != "127.0.0.1":
-        raise ValueError("La aplicación local escucha solo en 127.0.0.1")
+def make_server(service, web_root, host="127.0.0.1", port=8002, scenarios_path=None, public_origin=None):
+    if host not in ("127.0.0.1", "0.0.0.0"):
+        raise ValueError("Utiliza 127.0.0.1 o 0.0.0.0 como host")
+    if public_origin is not None:
+        parsed_origin = urlsplit(public_origin)
+        if (parsed_origin.scheme != "https" or not parsed_origin.hostname
+                or parsed_origin.username or parsed_origin.password
+                or parsed_origin.path not in ("", "/") or parsed_origin.query or parsed_origin.fragment):
+            raise ValueError("El origen público debe ser una URL HTTPS sin ruta ni credenciales")
+        public_origin = "https://" + parsed_origin.netloc
+    if host == "0.0.0.0" and public_origin is None:
+        raise ValueError("Configura un origen público HTTPS para escuchar fuera de loopback")
     root = Path(web_root).resolve()
     attempts = {}
     operations = CampaignOperations(service, scenarios_path)
@@ -90,11 +99,11 @@ def make_server(service, web_root, host="127.0.0.1", port=8002, scenarios_path=N
             self.wfile.write(json.dumps(value, ensure_ascii=False).encode("utf-8"))
 
         def _origin_allowed(self):
-            expected = f"127.0.0.1:{self.server.server_port}"
+            expected = urlsplit(public_origin).netloc if public_origin else f"127.0.0.1:{self.server.server_port}"
             if self.headers.get("Host") != expected:
                 return False
             origin = self.headers.get("Origin")
-            return origin is None or origin == "http://" + expected
+            return origin is None or origin == (public_origin or "http://" + expected)
 
         def _token(self):
             authorization = self.headers.get("Authorization", "")
@@ -107,9 +116,11 @@ def make_server(service, web_root, host="127.0.0.1", port=8002, scenarios_path=N
                 self._json(dict(error="Service unavailable; no operation is confirmed"), 503)
 
         def _get(self):
+            parsed = urlsplit(self.path)
+            if parsed.path == "/healthz":
+                return self._json(dict(status="ok"))
             if not self._origin_allowed():
                 return self._json(dict(error="Forbidden origin"), 403)
-            parsed = urlsplit(self.path)
             path = parsed.path
             if path == "/":
                 self._headers(200, "text/html; charset=utf-8")

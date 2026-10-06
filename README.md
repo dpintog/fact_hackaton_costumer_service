@@ -4,9 +4,32 @@ A local application whose main workflow is to **select customers, explain inclus
 
 Matching the filters **does not demonstrate financial benefit or actual inactivity**. The catalog contains no approved commercial terms. Queries that require them prepare a request in a local customer service queue. Lists are local; there is no advertising distribution adapter or connection to actual employees.
 
+## Quick demo for hackathon judges (5 minutes)
+
+[Watch the demo video](demo_video.mp4)
+
+**[Open the deployed app](https://ca-camps-ahorro.politedune-96575e92.northcentralus.azurecontainerapps.io)** — no installation or Azure account is needed. Sign in with these hackathon demo accounts:
+
+| Role | Username | Password |
+| --- | --- | --- |
+| Campaign operator | `operador` | `ScPJOREpaqG-p9rF1-hnKOz0C4gClcwp9UiVXUaWGaE` |
+| Customer | `escenario01` | `G93aZhSWctG10m4q6lmJD1rL0HGgBgA0Y9gICxMuySE` |
+
+1. **Review campaign selection:** log in as `operador`. Browse selected and excluded customers, filter by decision or reason, and open a customer's details to inspect the supporting evidence.
+2. **Prepare a campaign list:** click **Preparar lista**, review the audience, then **Confirmar preparación**. Check the confirmation receipt and download the CSV using **Descargar lista**. This prepares a local list; no advertising is sent.
+3. **Compare scenarios:** open **Casos de revisión** to inspect the 13 profiles and their expected outcomes, including recent activity, missing consent, and contact-frequency limits.
+4. **Test bilingual customer service:** log out and sign in as `escenario01`. Open **Mi información**, then **Atención** and ask “Quiero consultar mis cuentas de ahorro”. Switch the language to Portuguese and ask “Quero consultar minhas contas de poupança”. Responses should use that customer's data and the selected language.
+5. **Test explicit confirmation:** ask “Quero falar com um assessor”. Review the proposed request and choose **Confirmar** or **Cancelar**. A confirmed request produces a receipt in the simulated service queue; cancellation should create no request.
+
+The demo uses the organizer's historical data as of **March 1, 2026**. Advisor requests are simulated, and demo actions may reset if the container restarts.
+
+## Architecture
+
+![alt text](image.png)
+
 ## Run
 
-Requires Python 3.11 or later and the dependencies in `requirements.txt` (NumPy, PyYAML, and python-dotenv). On this machine, they can be installed in a local environment using the Codex runtime. If `python` is unavailable, use PowerShell:
+Requires Python 3.11 or later and the dependencies in `requirements.txt` (NumPy, PyYAML, python-dotenv, and the Azure Identity, Key Vault, and Blob Storage SDKs). On this machine, they can be installed in a local environment using the Codex runtime. If `python` is unavailable, use PowerShell:
 
 ```powershell
 $ProjectPython = "$env:USERPROFILE\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
@@ -49,6 +72,10 @@ intent_classifier:
 ```
 
 For Clef, set `clef_api_token` and `clef_Account_ID` in the root `.env` file (see `.env.example`). Environment variables take precedence. Credentials are read only when Clef is selected and remain outside YAML and HTTP responses. The token requires Workers AI permissions. The REST endpoint for [`@cf/cloudflare/clef`](https://developers.cloudflare.com/workers-ai/models/clef/) is used with a `choice` question covering the nine existing intents.
+
+For Azure Container Apps, [Key Vault setup and upload instructions](infra/azure/README.md) configure direct access to `kvcampsahorro` through the existing user-assigned managed identity. When `AZURE_KEY_VAULT_URL` is configured, Clef retrieves its credentials with the Azure SDK using `AZURE_CLIENT_ID`. Local environment variables and `.env` remain supported when the vault URL is unset. The Express environment requires SDK retrieval because it does not support native Key Vault references.
+
+The [Azure demo](https://ca-camps-ahorro.politedune-96575e92.northcentralus.azurecontainerapps.io) runs one replica and reads the existing `stlatambank/data` CSVs at container startup. It builds its SQLite working cache inside the container without modifying Storage. The image contains only code; demo logins are private and vault-backed. [Deployment configuration and verification](infra/azure/deployment.md) describe initialization and the agreed ephemeral state lifetime.
 
 `router: hybrid` preserves explicit priorities, rule fallback on abstentions, and clarification on disagreements. `learned` uses the selected provider directly; `baseline` uses only keywords and needs neither a model nor credentials. The response reports `prediction.model_provider` and `routing_source`. Clef thresholds are initial values awaiting a dedicated bilingual evaluation. An invalid response, API error, or timeout produces a controlled failure that allows a retry; it does not automatically switch providers.
 
