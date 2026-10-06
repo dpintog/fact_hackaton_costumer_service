@@ -4,6 +4,29 @@ A local application whose main workflow is to **select customers, explain inclus
 
 Matching the filters **does not demonstrate financial benefit or actual inactivity**. The catalog contains no approved commercial terms. Queries that require them prepare a request in a local customer service queue. Lists are local; there is no advertising distribution adapter or connection to actual employees.
 
+## Models and cloud deployment
+
+The application supports two models for understanding customer requests in Spanish and Portuguese. Both classify the same nine intents and connect to the same workflows for account information, campaign explanations, advisor requests, and advertising preferences.
+
+| Model | Role in the application | Deployment |
+| --- | --- | --- |
+| **Clef 27B** | Uses a structured choice question with bilingual intent descriptions and returns a probability for each intent. | Hosted on Cloudflare Workers AI; selected in the Azure demo. |
+| **Team-trained TF-IDF + softmax classifier** (multinomial logistic regression) | Learns word and character patterns from 324 team-authored Spanish and Portuguese training examples. | Runs locally without an external inference API; the default for local setup. |
+
+[Clef's distinguishing feature](https://developers.cloudflare.com/workers-ai/models/clef/) is its decision interface: a 27B multimodal model takes a state and a schema of typed questions, then returns probabilities over the allowed options. This project applies that interface to text intent classification. The adapter validates the returned probabilities and checks confidence and the margin between the leading intents, giving the router an explicit signal for uncertainty. The selected model works alongside rules for sensitive requests, and disagreements prompt clarification. Predictions identify the provider and routing source; training details and measured results are in [Evaluation](#evaluation).
+
+Cloudflare [introduced Clef on October 1, 2026](https://blog.cloudflare.com/clef-decision-models/), releasing its weights under Apache 2.0. Its decision step scores valid schema options in parallel without generating intermediate text token by token. Cloudflare also reports API compatibility with **Typesafe AI's Jev System One** and compares the models across 43 evaluations: median model latency was **209.3 ms for Clef and 524.1 ms for Jev** in that benchmark. These are Cloudflare's published measurements; this project has not evaluated Jev or measured that latency advantage in its bilingual banking workflow.
+
+The cloud deployment provides practical advantages for the demo and its operation:
+
+- **Browser access through Azure Container Apps:** judges can use the application over HTTPS without installing dependencies or running a local server.
+- **Hosted inference through Cloudflare Workers AI:** the application calls Clef through an API, so its container does not need to load the 27B model or provision GPU hardware.
+- **Separate source data in Azure Blob Storage:** the container builds its working cache from the organizer's stored CSVs, keeping the original files unchanged and outside the application image.
+- **Credentials in Azure Key Vault:** the application retrieves secrets using managed identity, keeping credentials outside source code and container images.
+- **Versioned images in Azure Container Registry:** a tagged application image and deployment template make releases identifiable and redeployment repeatable.
+
+The [Architecture](#architecture) section below shows how these components connect; [deployment details](infra/azure/deployment.md) document startup, configuration, and the demo's state lifetime. Campaign decisions retain supporting evidence, and advisor requests, advertising opt-outs, and campaign lists require explicit confirmation with verified receipts.
+
 ## Quick demo for hackathon judges (5 minutes)
 
 
