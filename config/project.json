@@ -1,0 +1,42 @@
+{
+  "schema_version": 2,
+  "policy_version": "phase2-1.1",
+  "product": "Cuenta Ahorro",
+  "country": "Colombia",
+  "demo_at": "2026-03-01T12:00:00",
+  "demo_timezone_assumption": "America/Bogota",
+  "dataset_cutoff": "2026-06-17T23:59:59",
+  "mode": "historical_replay",
+  "historical_replay_campaign_ids": ["CMP-PHK8DTE4KLJO"],
+  "require_explicit_country": true,
+  "require_explicit_segment": true,
+  "require_description": true,
+  "require_marketing_consent": true,
+  "require_profile_not_after_demo": true,
+  "customer_statuses_by_objective": {
+    "Reactivation": ["Active", "Inactive"],
+    "Acquisition": ["Active"],
+    "Cross-sell": ["Active"],
+    "Retention": ["Active"],
+    "Up-sell": ["Active"]
+  },
+  "frequency_limits": [
+    {"days": 7, "max_delivered_messages": 1},
+    {"days": 30, "max_delivered_messages": 3}
+  ],
+  "reactivation_observation_days": 30,
+  "reactivation_requires_prior_known_activity": true,
+  "reactivation_blocks_unreliable_recent_records": true,
+  "data_classification": "organizer_synthetic",
+  "decision_basis": {
+    "audience": "team_defined_demo_rules_not_bank_approved",
+    "account_state": "source_snapshot_not_verified_historical_state",
+    "reactivation": "prior_activity_and_no_recent_activity_observed_not_proof_of_inactivity",
+    "completed_campaign": "explicit_historical_replay_assumption",
+    "process_date": "availability_assumed_at_day_granularity",
+    "routing": "simulated_CO_AHORRO_queue_not_employee_availability",
+    "source_inventory": "exact_consumed_file_set_additions_and_deletions_require_rebuild",
+    "product_keys": "global_conflicting_duplicate_blocks_publication",
+    "transaction_keys": "scoped_keys_checked_against_all_other_rows_in_two_passes"
+  }
+}

@@ -1,4 +1,4 @@
-"""Reglas de demo. No representan elegibilidad financiera ni autenticación real."""
+"""Demo rules. Do not represent financial eligibility or real authentication."""
 
 from datetime import datetime, timedelta
 import unicodedata
@@ -107,7 +107,7 @@ def customer_reasons(customer, campaign, config, counts):
 
 
 def known_contact(send, config):
-    """Un contacto cuenta solo si era conocido, válido y entregado antes de la demo."""
+    """A contact counts only if it was known, valid, and delivered before the demo."""
     at = timestamp(config["demo_at"])
     sent, processed = timestamp(send.get("send_date")), timestamp(send.get("process_date"))
     return (not send.get("contact_quality_flags", send.get("quality_flags")) and boolean(send.get("was_delivered")) == 1
@@ -115,19 +115,21 @@ def known_contact(send, config):
 
 
 def permitted(principal, action, customer_id=None, assigned_customer_ids=(), confirmed=False):
-    """principal procede de un contexto de prueba confiable, nunca de un ID aportado como autenticación."""
+    """principal comes from a trusted test context, never from an ID supplied as authentication."""
     if principal.get("authenticated") is not True or principal.get("expired") is not False:
         return False
     role = principal.get("role")
-    if action in ("view_audience", "rebuild_data"):
+    if action in ("view_audience", "view_selection", "preview_campaign_batch", "rebuild_data"):
         return role == "operator"
+    if action == "prepare_campaign_batch":
+        return role == "operator" and confirmed is True
     if action == "view_public_campaign":
         return role in ("customer", "advisor", "operator")
     owns = role == "customer" and principal.get("customer_id") == customer_id and customer_id is not None
     assigned = role == "advisor" and customer_id in assigned_customer_ids
     if action == "view_customer_context":
         return owns or assigned
-    if action == "request_advisor":
+    if action in ("request_advisor", "marketing_optout"):
         return owns and confirmed is True
     return False
 

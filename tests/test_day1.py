@@ -1,4 +1,4 @@
-"""Pruebas de límites temporales, permisos y reconstrucción con fixtures pequeñas."""
+"""Tests for temporal boundaries, permissions, and rebuilding with small fixtures."""
 
 import contextlib
 import copy
@@ -106,7 +106,7 @@ class PolicyTests(unittest.TestCase):
             customer(), self.campaign, self.config, {7: 1}))
         self.assertIn("frequency_limit_30d", customer_reasons(
             customer(), self.campaign, self.config, {30: 3}))
-        # Una etiqueta de conversión futura o inválida no cambia la frecuencia.
+        # A future or invalid conversion label does not change frequency.
         row = send(quality_flags=["conversion_not_after_send"], contact_quality_flags=[])
         self.assertEqual(1, contact_count([row], self.config, 7))
 
@@ -210,6 +210,14 @@ class PipelineTests(unittest.TestCase):
         self.build()
         with self.assertRaisesRegex(ValueError, "configuración cambió"):
             select(self.out, {**self.config, "demo_at": "2026-03-02T12:00:00"})
+
+    def test_new_contact_partition_invalidates_the_prepared_inventory(self):
+        self.build()
+        write_csv(self.root / "data/campaign_sends/new.csv", SEND_FIELDS, [send("ARRIVED", customer_id="C001")])
+        with self.assertRaisesRegex(AssertionError, "inventario de fuentes cambió"):
+            verify(self.root, self.out)
+        self.build()
+        self.assertEqual([], self.audience())
 
 
 if __name__ == "__main__":

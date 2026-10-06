@@ -1,1 +1,1 @@
-"""Preparación y selección reproducible para la demo de campañas."""
+"""Reproducible preparation and selection for the campaign demo."""

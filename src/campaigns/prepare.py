@@ -1,4 +1,4 @@
-"""Contratos, auditoría y selección por reglas sobre los CSV suministrados."""
+"""Contracts, auditing, and rule-based selection over the supplied CSV files."""
 
 import argparse
 from collections import Counter
@@ -68,8 +68,8 @@ def connect(path):
 
 
 def initialize(conn):
-    # La reconstrucción inserta claves aleatorias en millones de filas.
-    # Una caché de 128 MiB evita releer índices constantemente, sin cambiar durabilidad.
+    # Rebuilding inserts random keys across millions of rows.
+    # A 128 MiB cache avoids constantly rereading indexes without changing durability.
     conn.execute("PRAGMA cache_size=-131072")
     conn.executescript("""
     CREATE TABLE customers (
@@ -173,7 +173,7 @@ def normalized(table, raw, customers, campaigns, config):
             flags.append("process_before_send_day")
         if row["process_date"] and row["process_date"] > timestamp(config["dataset_cutoff"]).isoformat(sep=" "):
             flags.append("process_after_dataset_cutoff")
-        # La frecuencia no depende de aperturas, clics ni conversiones posteriores.
+        # Frequency does not depend on subsequent opens, clicks, or conversions.
         contact_flags = [f for f in flags if f not in
                          ("was_opened_invalid", "was_clicked_invalid", "had_conversion_invalid", "conversion_date_invalid")]
         row["contact_quality_flags"] = json.dumps(sorted(set(contact_flags)), separators=(",", ":"))
@@ -238,9 +238,9 @@ def audit_and_prepare(root, out, config):
                 if conn.total_changes - before_insert == len(batch):
                     batch.clear()
                     return
-                # Sólo se consultan filas cuando INSERT OR IGNORE detectó IDs repetidos.
+                # Rows are queried only when INSERT OR IGNORE detected duplicate IDs.
                 for values in batch:
-                    # Se comparan únicamente los registros cuyo origen difiere del registro conservado.
+                    # Only compare records whose source differs from the retained record.
                     existing = conn.execute(
                         f"SELECT * FROM {table} WHERE {fields[0]}=?",
                         (values[0],)).fetchone()
@@ -566,6 +566,10 @@ def verify(root, out, check_sources=True):
                 raise AssertionError("El artefacto cambió: " + name)
     if check_sources:
         manifest = json.loads((out / "source_manifest.json").read_text(encoding="utf-8"))
+        expected_core = {s["path"] for s in manifest if s["path"] in {"data/customers.csv", "data/marketing_campaigns.csv"} or s["path"].startswith("data/campaign_sends/")}
+        current_core = {"data/customers.csv", "data/marketing_campaigns.csv"} | {p.relative_to(root).as_posix() for p in (root / "data/campaign_sends").rglob("*.csv")}
+        if current_core != expected_core:
+            raise AssertionError("El inventario de fuentes cambió; reconstruir el día 1")
         for source in manifest:
             if digest(root / source["path"]) != source["sha256"]:
                 raise AssertionError("La fuente cambió: " + source["path"])
