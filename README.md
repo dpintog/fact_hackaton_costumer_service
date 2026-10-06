@@ -6,11 +6,13 @@ La coincidencia con los filtros **no demuestra beneficio financiero ni inactivid
 
 ## Ejecutar
 
-Requiere Python 3.11 o posterior y NumPy. En esta máquina ya existe el runtime de Codex con NumPy instalado. Si `python` no está disponible, usa PowerShell:
+Requiere Python 3.11 o posterior y las dependencias de `requirements.txt` (NumPy, PyYAML y python-dotenv). En esta máquina se pueden instalar en un entorno local con el runtime de Codex. Si `python` no está disponible, usa PowerShell:
 
 ```powershell
 $ProjectPython = "$env:USERPROFILE\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
-& $ProjectPython scripts/serve.py
+& $ProjectPython -m venv --system-site-packages .venv
+& .\.venv\Scripts\python.exe -m pip install -r requirements.txt
+& .\.venv\Scripts\python.exe scripts/serve.py
 ```
 
 Con Python disponible en el PATH, reconstruye desde la raíz del repositorio:
@@ -29,11 +31,30 @@ python scripts/serve.py
 
 La preparación lee millones de filas y puede tardar varios minutos. Si los artefactos están preparados y verificados, basta `python scripts/serve.py`. Abre **http://127.0.0.1:8002**. Las credenciales están en el archivo privado `outputs/app/access_credentials.json`. `operador` revisa campañas, audiencias y casos; `escenario01` a `escenario13` acceden a sus propios datos. Se conservan `cliente1` a `cliente3` y sus contraseñas anteriores. El backend asigna roles y clientes; no se elige una identidad desde la interfaz.
 
-El modelo final en `outputs/models/intent.json` permanece congelado. Si sólo se conserva el código sin artefactos, `python scripts/train_intents.py` permite reconstruirlo a partir del corpus del equipo; esa ejecución produce otra versión y exige documentar su evaluación, sin ajustar usando la reserva expuesta.
+El modelo local final en `outputs/models/intent.json` permanece congelado. Si sólo se conserva el código sin artefactos, `python scripts/train_intents.py` permite reconstruirlo a partir del corpus del equipo; esa ejecución produce otra versión y exige documentar su evaluación, sin ajustar usando la reserva expuesta. Clef no necesita este artefacto local.
 
-El servidor admite `--port`, `--database`, `--model`, `--state`, `--credentials` y `--router hybrid|learned|baseline`. El modo predeterminado es `hybrid`, elegido con desarrollo antes de evaluar la reserva. No necesita API keys ni servicios externos. Ctrl+C detiene el servidor.
+El servidor lee `config/intent.yaml`. Cambia `intent_classifier.provider` y reinicia para elegir entre `tfidf` (**TF-IDF + regresión logística multinomial / softmax**, local y predeterminado) y `clef` (**Clef 27B**, Cloudflare Workers AI):
 
-La instancia entregada en esta máquina está en **http://127.0.0.1:8002**, porque el puerto 8000 estaba ocupado. Para relanzarla usa `python scripts/serve.py --port 8002` o `& $ProjectPython scripts/serve.py --port 8002`.
+```yaml
+schema_version: 1
+intent_classifier:
+  provider: clef # o tfidf
+  router: hybrid
+  tfidf:
+    model_path: outputs/models/intent.json
+  clef:
+    timeout_seconds: 15
+    confidence_threshold: 0.50
+    margin_threshold: 0.10
+```
+
+Para Clef, configura `clef_api_token` y `clef_Account_ID` en el `.env` de la raíz (consulta `.env.example`). Las variables del entorno tienen prioridad. Las credenciales se leen únicamente al seleccionar Clef y permanecen fuera del YAML y de las respuestas HTTP. El token requiere permisos de Workers AI. Se usa el endpoint REST de [`@cf/cloudflare/clef`](https://developers.cloudflare.com/workers-ai/models/clef/), con una pregunta `choice` sobre las nueve intenciones existentes.
+
+`router: hybrid` conserva las prioridades explícitas, el respaldo por reglas ante abstenciones y la aclaración ante desacuerdos. `learned` usa directamente el proveedor seleccionado; `baseline` usa solo palabras clave y no necesita un modelo ni credenciales. La respuesta informa `prediction.model_provider` y `routing_source`. Los umbrales de Clef son valores iniciales, pendientes de evaluación bilingüe propia. Una respuesta inválida, un error de API o un timeout produce un fallo controlado que permite reintentar; no cambia automáticamente de proveedor.
+
+El servidor admite `--config`, `--port`, `--database`, `--model`, `--state`, `--credentials`, `--scenarios` y `--router hybrid|learned|baseline`. `--router` sobrescribe el YAML y `--model` sobrescribe la ruta local solo con `tfidf`. Las rutas de modelos relativas al YAML se resuelven desde la raíz del repositorio. Ejemplo: `python scripts/serve.py --config config/intent.yaml`. El YAML se carga al iniciar; reinicia después de editarlo. Ctrl+C detiene el servidor. `config/project.json` y `config/day1.json` siguen definiendo las reglas y fechas de los datos; el YAML controla el clasificador de atención.
+
+La instancia entregada en esta máquina está en **http://127.0.0.1:8002**, porque el puerto 8000 estaba ocupado. Para relanzarla usa `python scripts/serve.py --port 8002` o `& .\.venv\Scripts\python.exe scripts/serve.py --port 8002`.
 
 `data/`, `docs/` y `outputs/` están excluidos de Git. Al clonar, copia los datos y documentos del organizador por separado. Los CSV originales nunca se modifican. Los ejemplos incluidos en `datasets/` son sintéticos, redactados por el equipo. No publiques credenciales ni bases de estado.
 
@@ -66,9 +87,12 @@ flowchart LR
   D2 --> DATA[(SQLite de lectura)]
   EX[Ejemplos sintéticos ES/PT] --> TRAIN[TF-IDF + softmax]
   TRAIN --> MODEL[Modelo JSON]
+  YAML[config/intent.yaml] --> ROUTER[Proveedor de intenciones]
+  MODEL --> ROUTER
+  CLEF[Clef 27B / Workers AI] --> ROUTER
   UI[Interfaz] --> HTTP[Servidor local]
   HTTP --> SERVICE[Sesión, contexto y permisos]
-  MODEL --> SERVICE
+  ROUTER --> SERVICE
   DATA --> SERVICE
   SERVICE --> STATE[(Solicitudes y preferencias)]
   CASES[Reserva y fallos] --> EVAL[Evaluación comparada]
@@ -78,6 +102,9 @@ flowchart LR
 | Archivo | Responsabilidad |
 |---|---|
 | `config/project.json` | Alcance, reglas de selección, fecha y supuestos históricos |
+| `config/intent.yaml` | Selección TF-IDF/Clef, routing y umbrales de Clef |
+| `src/campaigns/configuration.py` | Carga y validación YAML; credenciales de Clef desde `.env` o entorno |
+| `src/campaigns/clef.py` | Adaptador REST de Clef 27B y validación de probabilidades |
 | `src/campaigns/prepare.py` | Clientes, campañas y envíos; contratos, calidad y origen |
 | `src/campaigns/phase2.py` | Cuentas, actividad y selección; recalcula todas las decisiones al verificar |
 | `src/campaigns/store.py` | Lecturas mínimas y rechazo de una base reemplazada hasta reiniciar |
@@ -118,6 +145,8 @@ Las 171.321 transcripciones suministradas están en español y sólo tienen 546 
 
 TF-IDF de palabras y caracteres alimenta una regresión softmax local. Hay 324 ejemplos de entrenamiento y 36 de desarrollo, con ES/PT juntos por familia. Vocabulario, IDF y pesos usan solo entrenamiento. Umbrales fijados con desarrollo: confianza 0,30, margen 0,10, cobertura léxica 0,08. El híbrido informa modelo, regla explícita o respaldo; sus resultados no se atribuyen íntegramente a ML.
 
+`scripts/evaluate.py` sigue comparando las tres variantes locales congeladas; no usa el proveedor del YAML ni llama a Clef. Las métricas históricas siguientes corresponden al modelo local. La integración de Clef necesita medir por separado calidad, latencia y costo antes de atribuirle esos resultados.
+
 La reserva independiente del equipo tiene **48 casos, 24 familias bilingües**, congelados antes de comparar. Veinte casos tienen juicio específico de intención; los demás verifican políticas y fallos. Las etiquetas no están validadas por el banco. La separación por familias y texto exacto ayuda a prevenir fuga; no prueba independencia semántica absoluta.
 
 La primera comparación midió intención baseline 80%, aprendido 85%, híbrido 90%. El flujo híbrido pasó **44/48**; esos fallos se conservan. Las correcciones posteriores del flujo pasaron **48/48 en regresión**, con clasificador y umbrales congelados. Esa repetición no es una nueva evaluación independiente.
@@ -139,7 +168,7 @@ La verificación global final pasó **79 pruebas**, incluidas 20 de selección, 
 
 Las métricas distinguen resolución automática segura sobre todos los casos dentro del alcance, automatización intentada, contención, calidad de traslado y resultados inseguros. Se ejecutan dos repeticiones y se informan muestras ES/PT y segmentos. Cero errores inseguros observados no implica riesgo cero. La latencia final suma todos los turnos de servicio del caso, con verificaciones internas; excluye preparación de fixtures y rúbrica, red bancaria y espera humana. La primera medición incluía sobrecarga de evaluación y no debe compararse con la corregida.
 
-APIs externas cuestan USD 0; hardware, energía y operación local no están valorizados. El costo por resolución es indefinido cuando no hay resoluciones. No se ha medido conversión, ahorro comercial ni mejora de producción.
+En la evaluación local, APIs externas cuestan USD 0; hardware, energía y operación local no están valorizados. Clef utiliza una API externa cuyo consumo depende de Workers AI. El costo por resolución es indefinido cuando no hay resoluciones. No se ha medido conversión, ahorro comercial ni mejora de producción.
 
 ## Actualización y operación
 
@@ -147,6 +176,6 @@ Detén el servidor antes de actualizar datos o reglas. Reconstruye y verifica d�
 
 Es un único proceso local, con bloqueo para operaciones de estado; no se ha ensayado capacidad bancaria. Mensajes: hasta 2.000 caracteres. Sesiones: 30 minutos reales, independientes de la fecha histórica. Consultas SQL parametrizadas. Reintentos automáticos de herramientas: cero; el usuario puede reintentar explícitamente con la misma clave. Fallar nunca autoriza un envío.
 
-Para operación real faltan identidad institucional, términos y políticas aprobados, revisión humana de etiquetas y reglas, integraciones autorizadas, TLS, gestión de secretos, monitoreo y pruebas de carga. La auditoría local registra acciones/resultados y la evaluación conserva tiempos/transcripciones. No se exportan datos a modelos externos.
+Para operación real faltan identidad institucional, términos y políticas aprobados, revisión humana de etiquetas y reglas, integraciones autorizadas, TLS, gestión de secretos, monitoreo y pruebas de carga. La auditoría local registra acciones/resultados y la evaluación conserva tiempos/transcripciones. Con `tfidf` la inferencia es local. Con `clef` se envía a Cloudflare el mensaje que se clasifica y las descripciones de intenciones; el adaptador no adjunta cuentas, saldos, credenciales ni historial de conversación.
 
 Retención local: últimos 12 mensajes por conversación; las sesiones vencen en 30 minutos. Solicitudes, preferencias, listas y auditoría permanecen hasta eliminar el estado. Con el servidor detenido, archiva o elimina manualmente estado y credenciales tras los ensayos según las reglas del organizador. Esto elimina los registros locales, sin afectar los CSV. La operación real necesita una política de retención y borrado aprobada.

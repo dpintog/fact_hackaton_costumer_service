@@ -180,6 +180,27 @@ class ServiceTests(unittest.TestCase):
         self.assertEqual(response["status"], "clarify")
         self.assertIn("2.000", response["message"])
 
+    def test_clef_failure_is_controlled_and_preserves_pending_confirmation(self):
+        from campaigns.clef import ClefError
+        from unittest.mock import Mock
+        pending = self.service.chat(self.token, "asesor")
+        failing_model = Mock()
+        failing_model.predict.side_effect = ClefError("private-upstream-error")
+        self.service.model = failing_model
+        self.store.private_reads.clear()
+        result = self.service.chat(self.token, "mis cuentas", pending["conversation_id"], language="pt")
+        self.assertEqual(result["status"], "tool_error")
+        self.assertEqual(result["routing_source"], "model_unavailable")
+        self.assertEqual(result["pending_action"], pending["pending_action"])
+        self.assertNotIn("private-upstream-error", json.dumps(result))
+        self.assertEqual(self.store.private_reads, [])
+        self.assertEqual(self.service.request_count(self.token), 0)
+        confirmed = self.service.chat(self.token, "Confirmo", result["conversation_id"],
+                                      confirmed=True, idempotency_key=pending["pending_action"]["idempotency_key"])
+        self.assertEqual(confirmed["status"], "handoff_created")
+        self.assertEqual(self.service.request_count(self.token), 1)
+        failing_model.predict.assert_called_once()
+
     def test_restart_rejects_pending_action_from_previous_data_version(self):
         pending = self.service.chat(self.token, "asesor")
         new_store = FixtureStore()

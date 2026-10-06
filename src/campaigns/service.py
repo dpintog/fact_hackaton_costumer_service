@@ -64,6 +64,8 @@ MESSAGES = {
                "A ação pendente foi cancelada. Nenhuma alteração foi feita."),
     "tool_error": ("No pude comprobar el resultado de la operación. No la doy por completada. Puedes reintentar la acción pendiente.",
                    "Não consegui conferir o resultado da operação. Não a considero concluída. Você pode tentar novamente a ação pendente."),
+    "classifier_error": ("No pude interpretar tu consulta en este momento. Intenta enviarla de nuevo.",
+                         "Não consegui interpretar sua consulta neste momento. Tente enviá-la novamente."),
     "unsupported": ("Puedo atender consultas de Cuenta de Ahorro o registrar una solicitud de asesor. Las evaluaciones de crédito requieren otro proceso.",
                     "Posso atender consultas sobre conta poupança ou registrar uma solicitação de assessor. Avaliações de crédito exigem outro processo."),
     "unavailable": ("Las fechas del perfil no permiten una consulta coherente al corte de datos. Puedo explicar el catálogo o registrar una solicitud de aclaración.",
@@ -74,7 +76,7 @@ MESSAGES = {
 
 
 class IntentRouter:
-    """Explicitly select the evaluated baseline, learned or hybrid variant."""
+    """Select baseline, learned or hybrid routing with the configured model."""
     def __init__(self, model, mode="hybrid"):
         if mode not in ("baseline", "learned", "hybrid"):
             raise ValueError("Unknown router mode")
@@ -83,10 +85,13 @@ class IntentRouter:
     def predict(self, text):
         from .intents import baseline_predict, hybrid_predict
         if self.mode == "baseline":
-            return {**baseline_predict(text), "routing_source": "baseline"}
+            return {**baseline_predict(text), "routing_source": "baseline", "model_provider": "baseline"}
         if self.mode == "learned":
-            return {**self.model.predict(text), "routing_source": "learned"}
-        return hybrid_predict(text, self.model)
+            result = {**self.model.predict(text), "routing_source": "learned"}
+        else:
+            result = hybrid_predict(text, self.model)
+        return {**result, "model_provider": getattr(self.model, "provider", "tfidf"),
+                "model_version": getattr(self.model, "model_version", "tfidf-softmax-es-pt-v1")}
 
 
 class ChatService:
@@ -360,7 +365,14 @@ class ChatService:
                 response = self._response("clarify", "clarify", language)
                 self._save_conversation(conn, conversation, message, response, pending)
                 return response
-            prediction = self.model.predict(message)
+            from .clef import ClefError
+            try:
+                prediction = self.model.predict(message)
+            except ClefError:
+                response = self._response("tool_error", "classifier_error", language,
+                                          routing_source="model_unavailable")
+                self._save_conversation(conn, conversation, message, response, pending)
+                return response
             intent = prediction.get("intent", "unknown")
             history = json.loads(conversation["history"])
             if normalized in ("esa campana", "essa campanha", "y esa campana", "e essa campanha", "cuentame mas", "me conte mais"):

@@ -1,0 +1,16 @@
+schema_version: 1
+intent_classifier:
+  # tfidf: TF-IDF + regresión logística multinomial (softmax), local.
+  # clef: Clef 27B en Cloudflare Workers AI.
+  provider: tfidf
+  # hybrid conserva las reglas explícitas; learned usa solo el modelo seleccionado.
+  router: hybrid
+  tfidf:
+    # Las rutas relativas se resuelven desde la raíz del repositorio.
+    model_path: outputs/models/intent.json
+  clef:
+    # Credenciales: clef_api_token y clef_Account_ID en .env o el entorno.
+    timeout_seconds: 15
+    # Umbrales iniciales de Clef; requieren evaluación propia ES/PT.
+    confidence_threshold: 0.50
+    margin_threshold: 0.10
