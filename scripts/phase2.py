@@ -1,4 +1,4 @@
-"""Preparar, seleccionar y verificar el alcance de la fase 2."""
+"""Prepare, select, and verify the phase 2 scope."""
 
 import argparse
 import json

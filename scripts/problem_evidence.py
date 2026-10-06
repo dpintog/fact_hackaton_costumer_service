@@ -1,4 +1,4 @@
-"""Agregados de demanda y límites de transcripciones; nunca modifica las fuentes."""
+"""Demand aggregates and transcript limitations; never modifies the sources."""
 
 import argparse
 from collections import Counter

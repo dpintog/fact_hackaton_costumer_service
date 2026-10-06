@@ -1,4 +1,4 @@
-"""Lecturas mínimas del snapshot preparado; la autorización pertenece al servicio."""
+"""Minimal reads from the prepared snapshot; authorization belongs to the service."""
 
 from contextlib import contextmanager
 from collections import Counter
@@ -169,6 +169,6 @@ class DataStore:
                     if r["customer_id"] not in excluded]
 
     def demo_customers(self, limit=5):
-        """Seleccionar credenciales demo localmente; no exponer este método en HTTP."""
+        """Select demo credentials locally; do not expose this method over HTTP."""
         with self._connect() as conn:
             return [r[0] for r in conn.execute("SELECT DISTINCT customer_id FROM decisions WHERE eligible=1 ORDER BY customer_id LIMIT ?", (limit,))]

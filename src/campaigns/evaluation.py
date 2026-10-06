@@ -1,7 +1,7 @@
-"""Evaluación offline con reserva bilingüe y juicios deterministas independientes.
+"""Offline evaluation with a bilingual held-out set and independent deterministic judgments.
 
-Los casos no alimentan el entrenamiento ni el ajuste de umbrales. Las fixtures
-son ficticias: no contienen registros de los clientes del dataset suministrado.
+Cases are not used for training or threshold tuning. The fixtures
+are fictional: they contain no customer records from the supplied dataset.
 """
 
 from collections import Counter, defaultdict
@@ -28,7 +28,7 @@ def file_hash(path):
 
 
 def load_cases(path, manifest_path=None):
-    """Rechaza cambios, duplicados y traducciones separadas de su familia."""
+    """Reject changes, duplicates, and translations separated from their family."""
     path = Path(path)
     cases = [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
     identifiers = [case["case_id"] for case in cases]
@@ -52,7 +52,7 @@ def load_cases(path, manifest_path=None):
 
 
 def validate_split_isolation(cases, training_path):
-    """Comprueba familia y texto exacto; no promete independencia semántica."""
+    """Check family and exact text; does not promise semantic independence."""
     training = [json.loads(line) for line in Path(training_path).read_text(encoding="utf-8").splitlines()
                 if line.strip()]
     heldout_families = {case["family_id"] for case in cases}
@@ -63,8 +63,8 @@ def validate_split_isolation(cases, training_path):
         return " ".join(value.casefold().split())
     heldout_texts = {normalized(step["message"]) for case in cases for step in case["steps"]}
     training_texts = {normalized(row["text"]) for row in training}
-    # Confirmaciones y saludos no se utilizan como ejemplos de entrenamiento si
-    # coinciden literalmente con una conversación reservada.
+    # Confirmations and greetings are not used as training examples if
+    # they exactly match a held-out conversation.
     if heldout_texts & training_texts:
         raise ValueError("exact text leakage between training/development and held-out")
     return {"family_overlap": 0, "exact_text_overlap": 0,
@@ -73,7 +73,7 @@ def validate_split_isolation(cases, training_path):
 
 
 class FixtureStore:
-    """Proyección ficticia con el mismo contrato de lectura del servicio real."""
+    """Fictional projection with the same read contract as the real service."""
 
     def __init__(self, segment="Basic", scenario="normal"):
         self.config = json.loads((ROOT / "config/day1.json").read_text(encoding="utf-8"))
@@ -117,7 +117,7 @@ class FixtureStore:
         return deepcopy(self.customers.get(customer_id))
 
     def get_accounts(self, customer_id):
-        # El backend preparado real excluye registros inválidos de las lecturas.
+        # The real prepared backend excludes invalid records from reads.
         return deepcopy([row for row in self.accounts.get(customer_id, []) if not row["quality_flags"]])
 
     def get_activity(self, customer_id):
@@ -160,10 +160,10 @@ class HybridModel:
 
 
 class ServiceAdapter:
-    """Traduce alias de fixture y claves de repetición al contrato real del servicio.
+    """Translate fixture aliases and retry keys to the real service contract.
 
-    No cambia ni juzga las intenciones. Las claves del cliente referencian una
-    acción pendiente emitida por el servidor; el runner no las fabrica.
+    Does not change or judge intents. Client keys reference a
+    pending action issued by the server; the runner does not fabricate them.
     """
     def __init__(self, case, model, state_path):
         from campaigns.service import ChatService
@@ -250,11 +250,11 @@ def classification_metrics(rows):
 
 
 def check_step(step, response, request_count=None, request=None, consent_value=None):
-    """Rúbrica mecánica de outcome, autorización, grounding y persistencia.
+    """Mechanical rubric for outcome, authorization, grounding, and persistence.
 
-    No es un juez semántico de respuestas libres. Marca por separado errores de
-    utilidad y fallos de seguridad; una aclaración puede contener un caso sin
-    resolverlo. La auditoría final también conserva la respuesta completa.
+    Not a semantic judge of free-form responses. Separately flags errors in
+    usefulness and safety failures; a clarification may contain a case without
+    resolving it. The final audit also retains the complete response.
     """
     failures, unsafe = [], []
     status = response.get("status", response.get("outcome"))
@@ -319,7 +319,7 @@ def check_step(step, response, request_count=None, request=None, consent_value=N
 
 
 def check_fixture_facts(case, step, response, store):
-    """Contrasta valores críticos con la fuente sintética autorizada del caso."""
+    """Check critical values against the case's authorized synthetic source."""
     failures, unsafe = [], []
     facts = response.get("facts") or {}
     if not isinstance(facts, dict):
@@ -409,7 +409,7 @@ def summarize(rows):
 
 
 def run_cases(cases, service_factory, model, mode, repeat=1):
-    """service_factory(case, model, path)->adapter. API de adaptador documentada."""
+    """service_factory(case, model, path)->adapter. Documented adapter API."""
     results = []
     for run in range(repeat):
         for case in cases:

@@ -1,23 +1,23 @@
-# Datos, documentos y resultados locales
+# Local data, documents, and outputs
 /data/
 /docs/
 /outputs/
 
-# Entornos virtuales de Python
+# Python virtual environments
 .venv/
 venv/
 env/
 .env/
 ENV/
 
-# Cachés y archivos compilados de Python
+# Python caches and compiled files
 __pycache__/
 *.py[cod]
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 
-# Configuración local y secretos
+# Local configuration and secrets
 .env
 .env.*
 !.env.example

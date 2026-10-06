@@ -1,4 +1,4 @@
-"""Tests de la rúbrica: fallos materiales y denominadores sin fabricar éxito."""
+"""Rubric tests: material failures and denominators without fabricating success."""
 
 import json
 from pathlib import Path

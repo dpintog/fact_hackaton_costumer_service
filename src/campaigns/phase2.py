@@ -1,4 +1,4 @@
-"""Proyección de cuentas/actividad y selección explicable sin etiquetas futuras."""
+"""Account/activity projection and explainable selection without future labels."""
 
 from collections import Counter
 import csv
@@ -92,7 +92,7 @@ def schema(conn):
 
 
 def prepare(root, out, config, day1=None):
-    """Reconstrucción completa en archivo temporal; nunca edita los CSV ni día 1."""
+    """Full rebuild in a temporary file; never edits CSV files or day 1."""
     root, out = Path(root).resolve(), Path(out).resolve()
     if out == root or out == root / "data" or root / "data" in out.parents:
         raise ValueError("La salida debe estar fuera de data y de la raíz")
@@ -193,7 +193,7 @@ def prepare(root, out, config, day1=None):
         tx_files = sorted((root / "data/transactions").rglob("*.csv"))
         if not tx_files:
             raise ValueError("Faltan archivos transactions")
-        # Sólo guardamos evidencias de los cinco eventos aprobados más recientes por cuenta.
+        # Only retain evidence for the five most recent approved events per account.
         samples, seen = {}, {}
         for file_index, path in enumerate(tx_files, 1):
             before = path.stat()
@@ -397,7 +397,7 @@ def verify(out, root=None):
             raise ValueError("Integridad de la base")
         config = json.loads(conn.execute("SELECT value FROM metadata WHERE key='config'").fetchone()[0])
         rows = [dict(r) for r in conn.execute("SELECT * FROM decisions ORDER BY campaign_id,customer_id")]
-        # Recalcular toda la selección dentro de una transacción reversible y conciliar, no sólo los elegidos.
+        # Recompute and reconcile the entire selection within a reversible transaction, not just selected customers.
         conn.execute("BEGIN")
         compute_decisions(conn, config)
         current = [dict(r) for r in conn.execute("SELECT * FROM decisions ORDER BY campaign_id,customer_id")]

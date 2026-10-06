@@ -1,12 +1,12 @@
-# Campañas relevantes y atención de Cuenta de Ahorro
+# Relevant campaigns and savings account customer service
 
-Aplicación local cuyo recorrido principal es **seleccionar clientes, explicar inclusiones y exclusiones, y preparar una lista de campaña confirmada**. El cliente consulta su información y recibe atención en español y portugués. Incluye un clasificador de intenciones entrenado, fuentes verificables y acciones confirmadas. Alcance: **Cuenta Ahorro, Colombia, análisis histórico del 1 de marzo de 2026 a las 12:00**, con hora de Bogotá asumida para timestamps sin zona.
+A local application whose main workflow is to **select customers, explain inclusions and exclusions, and prepare a confirmed campaign list**. Customers view their information and receive service in Spanish and Portuguese. It includes a trained intent classifier, verifiable sources, and confirmed actions. Scope: **Cuenta Ahorro (savings account), Colombia, historical analysis as of March 1, 2026 at 12:00**, assuming Bogotá time for timestamps without a time zone.
 
-La coincidencia con los filtros **no demuestra beneficio financiero ni inactividad real**. No hay condiciones comerciales aprobadas en el catálogo. Las consultas que las requieren preparan una solicitud en una cola local de atención. Las listas son locales; no hay un adaptador de distribución de publicidad ni conexión con empleados reales.
+Matching the filters **does not demonstrate financial benefit or actual inactivity**. The catalog contains no approved commercial terms. Queries that require them prepare a request in a local customer service queue. Lists are local; there is no advertising distribution adapter or connection to actual employees.
 
-## Ejecutar
+## Run
 
-Requiere Python 3.11 o posterior y las dependencias de `requirements.txt` (NumPy, PyYAML y python-dotenv). En esta máquina se pueden instalar en un entorno local con el runtime de Codex. Si `python` no está disponible, usa PowerShell:
+Requires Python 3.11 or later and the dependencies in `requirements.txt` (NumPy, PyYAML, and python-dotenv). On this machine, they can be installed in a local environment using the Codex runtime. If `python` is unavailable, use PowerShell:
 
 ```powershell
 $ProjectPython = "$env:USERPROFILE\.cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
@@ -15,7 +15,7 @@ $ProjectPython = "$env:USERPROFILE\.cache\codex-runtimes\codex-primary-runtime\d
 & .\.venv\Scripts\python.exe scripts/serve.py
 ```
 
-Con Python disponible en el PATH, reconstruye desde la raíz del repositorio:
+With Python available on PATH, rebuild from the repository root:
 
 ```powershell
 python -m pip install -r requirements.txt
@@ -29,16 +29,16 @@ python scripts/evaluate.py --repeat 2 --regression-run
 python scripts/serve.py
 ```
 
-La preparación lee millones de filas y puede tardar varios minutos. Si los artefactos están preparados y verificados, basta `python scripts/serve.py`. Abre **http://127.0.0.1:8002**. Las credenciales están en el archivo privado `outputs/app/access_credentials.json`. `operador` revisa campañas, audiencias y casos; `escenario01` a `escenario13` acceden a sus propios datos. Se conservan `cliente1` a `cliente3` y sus contraseñas anteriores. El backend asigna roles y clientes; no se elige una identidad desde la interfaz.
+Preparation reads millions of rows and may take several minutes. If the artifacts are already prepared and verified, `python scripts/serve.py` is sufficient. Open **http://127.0.0.1:8002**. Credentials are in the private file `outputs/app/access_credentials.json`. `operador` reviews campaigns, audiences, and cases; `escenario01` through `escenario13` access their own data. `cliente1` through `cliente3` and their previous passwords are retained. The backend assigns roles and customers; users do not choose an identity in the interface.
 
-El modelo local final en `outputs/models/intent.json` permanece congelado. Si sólo se conserva el código sin artefactos, `python scripts/train_intents.py` permite reconstruirlo a partir del corpus del equipo; esa ejecución produce otra versión y exige documentar su evaluación, sin ajustar usando la reserva expuesta. Clef no necesita este artefacto local.
+The final local model in `outputs/models/intent.json` remains frozen. If only the code is retained without artifacts, `python scripts/train_intents.py` can rebuild it from the team's corpus; that run produces another version and requires documenting its evaluation, without tuning on the exposed held-out set. Clef does not require this local artifact.
 
-El servidor lee `config/intent.yaml`. Cambia `intent_classifier.provider` y reinicia para elegir entre `tfidf` (**TF-IDF + regresión logística multinomial / softmax**, local y predeterminado) y `clef` (**Clef 27B**, Cloudflare Workers AI):
+The server reads `config/intent.yaml`. Change `intent_classifier.provider` and restart to choose between `tfidf` (**TF-IDF + multinomial logistic regression / softmax**, local and default) and `clef` (**Clef 27B**, Cloudflare Workers AI):
 
 ```yaml
 schema_version: 1
 intent_classifier:
-  provider: clef # o tfidf
+  provider: clef # or tfidf
   router: hybrid
   tfidf:
     model_path: outputs/models/intent.json
@@ -48,134 +48,134 @@ intent_classifier:
     margin_threshold: 0.10
 ```
 
-Para Clef, configura `clef_api_token` y `clef_Account_ID` en el `.env` de la raíz (consulta `.env.example`). Las variables del entorno tienen prioridad. Las credenciales se leen únicamente al seleccionar Clef y permanecen fuera del YAML y de las respuestas HTTP. El token requiere permisos de Workers AI. Se usa el endpoint REST de [`@cf/cloudflare/clef`](https://developers.cloudflare.com/workers-ai/models/clef/), con una pregunta `choice` sobre las nueve intenciones existentes.
+For Clef, set `clef_api_token` and `clef_Account_ID` in the root `.env` file (see `.env.example`). Environment variables take precedence. Credentials are read only when Clef is selected and remain outside YAML and HTTP responses. The token requires Workers AI permissions. The REST endpoint for [`@cf/cloudflare/clef`](https://developers.cloudflare.com/workers-ai/models/clef/) is used with a `choice` question covering the nine existing intents.
 
-`router: hybrid` conserva las prioridades explícitas, el respaldo por reglas ante abstenciones y la aclaración ante desacuerdos. `learned` usa directamente el proveedor seleccionado; `baseline` usa solo palabras clave y no necesita un modelo ni credenciales. La respuesta informa `prediction.model_provider` y `routing_source`. Los umbrales de Clef son valores iniciales, pendientes de evaluación bilingüe propia. Una respuesta inválida, un error de API o un timeout produce un fallo controlado que permite reintentar; no cambia automáticamente de proveedor.
+`router: hybrid` preserves explicit priorities, rule fallback on abstentions, and clarification on disagreements. `learned` uses the selected provider directly; `baseline` uses only keywords and needs neither a model nor credentials. The response reports `prediction.model_provider` and `routing_source`. Clef thresholds are initial values awaiting a dedicated bilingual evaluation. An invalid response, API error, or timeout produces a controlled failure that allows a retry; it does not automatically switch providers.
 
-El servidor admite `--config`, `--port`, `--database`, `--model`, `--state`, `--credentials`, `--scenarios` y `--router hybrid|learned|baseline`. `--router` sobrescribe el YAML y `--model` sobrescribe la ruta local solo con `tfidf`. Las rutas de modelos relativas al YAML se resuelven desde la raíz del repositorio. Ejemplo: `python scripts/serve.py --config config/intent.yaml`. El YAML se carga al iniciar; reinicia después de editarlo. Ctrl+C detiene el servidor. `config/project.json` y `config/day1.json` siguen definiendo las reglas y fechas de los datos; el YAML controla el clasificador de atención.
+The server supports `--config`, `--port`, `--database`, `--model`, `--state`, `--credentials`, `--scenarios`, and `--router hybrid|learned|baseline`. `--router` overrides YAML, and `--model` overrides the local path only with `tfidf`. Model paths specified in YAML are resolved from the repository root when relative. Example: `python scripts/serve.py --config config/intent.yaml`. YAML is loaded at startup; restart after editing it. Ctrl+C stops the server. `config/project.json` and `config/day1.json` still define data rules and dates; YAML controls the customer service classifier.
 
-La instancia entregada en esta máquina está en **http://127.0.0.1:8002**, porque el puerto 8000 estaba ocupado. Para relanzarla usa `python scripts/serve.py --port 8002` o `& .\.venv\Scripts\python.exe scripts/serve.py --port 8002`.
+The instance delivered on this machine is at **http://127.0.0.1:8002**, because port 8000 was occupied. To relaunch it, use `python scripts/serve.py --port 8002` or `& .\.venv\Scripts\python.exe scripts/serve.py --port 8002`.
 
-`data/`, `docs/` y `outputs/` están excluidos de Git. Al clonar, copia los datos y documentos del organizador por separado. Los CSV originales nunca se modifican. Los ejemplos incluidos en `datasets/` son sintéticos, redactados por el equipo. No publiques credenciales ni bases de estado.
+`data/`, `docs/`, and `outputs/` are excluded from Git. When cloning, copy the organizer's data and documents separately. Original CSV files are never modified. The examples in `datasets/` are synthetic and authored by the team. Do not publish credentials or state databases.
 
-## Revisar campañas y clientes
+## Review campaigns and customers
 
-1. Ingresa como `operador`. La pantalla principal muestra evaluados, seleccionados, excluidos y motivos. El catálogo tiene cinco campañas del alcance; una está admitida por las reglas y la fecha de análisis. Filtra decisiones y motivos, recorre páginas y abre el detalle de una decisión.
-2. **Preparar lista** muestra la audiencia completa; **Confirmar preparación** guarda todos sus destinatarios dentro de una transacción y comprueba los IDs guardados. El comprobante y la descarga CSV sólo están disponibles para su operador. No se envía publicidad.
-3. Consulta **Casos de revisión**. El catálogo elige de forma reproducible 13 clientes distintos de los datos del organizador: selección, actividad reciente, falta de consentimiento, segmento, límites de 7/30 días, falta de cuenta, cuenta incoherente, perfil futuro, actividad previa desconocida, estado de cuenta, movimiento reciente en cuarentena y baja confirmada de publicidad.
-4. Ingresa como `escenario01` para ver un candidato con historial; `escenario02` tiene actividad reciente; `escenario03` carece de consentimiento. **Mi información** muestra cuentas coherentes y hasta cinco movimientos aprobados conocidos, con fecha, tipo e IDs. **Atención** conserva las consultas y permite pedir aclaración a un asesor.
+1. Log in as `operador`. The main screen shows evaluated, selected, and excluded customers and the reasons. The catalog has five campaigns within scope; one is admitted by the rules and analysis date. Filter decisions and reasons, browse pages, and open a decision's details.
+2. **Prepare list** (UI: **Preparar lista**) shows the complete audience; **Confirm preparation** (UI: **Confirmar preparación**) saves all recipients within a transaction and checks the saved IDs. The receipt and CSV download are available only to its operator. No advertising is sent.
+3. View **Review cases** (UI: **Casos de revisión**). The catalog reproducibly chooses 13 distinct customers from the organizer's data: selection, recent activity, missing consent, segment, 7/30-day limits, missing account, inconsistent account, future profile, unknown prior activity, account status, quarantined recent transaction, and confirmed advertising opt-out.
+4. Log in as `escenario01` to see a candidate with a history; `escenario02` has recent activity; `escenario03` lacks consent. **My information** (UI: **Mi información**) shows consistent accounts and up to five known approved transactions, with dates, types, and IDs. **Customer service** (UI: **Atención**) retains queries and allows customers to ask an advisor for clarification.
 
-Los datos son fijos. «Últimos movimientos» significa **los últimos registros confiables conocidos hasta el corte acordado**, no actividad de hoy. No se fabrican transacciones ni clientes para completar ejemplos. La actualización se comprueba mediante fixtures separadas y etiquetadas en las pruebas; no es una fuente en vivo.
+The data is fixed. “Latest transactions” means **the latest reliable records known up to the agreed cutoff**, not today's activity. No transactions or customers are fabricated to complete examples. Updates are checked using separate, labeled test fixtures; this is not a live source.
 
-Trece perfiles amplían la inspección manual, pero no garantizan todos los comportamientos. La selección se verifica sobre la población completa de Colombia y la atención mantiene su evaluación bilingüe separada.
+Thirteen profiles broaden manual inspection but do not guarantee coverage of every behavior. Selection is verified against the entire Colombian population, and customer service retains its separate bilingual evaluation.
 
-## Revisar la atención
+## Review customer service
 
-1. Ingresa y consulta «Quiero consultar mis cuentas de ahorro», «Quiero consultar mi actividad reciente» y «¿Qué campaña de ahorro puedo consultar?».
-2. Pregunta «¿Cuáles son las tasas y comisiones de la campaña?». Revisa la solicitud propuesta y pulsa **Confirmar** o **Cancelar**. Solo se muestra un comprobante después de guardar y leer la solicitud.
-3. Cambia a portugués: «Quero consultar minhas contas de poupança» y «Quero falar com um assessor».
-4. «No quiero recibir publicidad» propone una preferencia local. Confirmarla excluye al cliente de la audiencia del operador y conserva la atención solicitada por el cliente.
+1. Log in and submit the Spanish queries “Quiero consultar mis cuentas de ahorro” (I want to view my savings accounts), “Quiero consultar mi actividad reciente” (I want to view my recent activity), and “¿Qué campaña de ahorro puedo consultar?” (Which savings campaign can I view?).
+2. Ask “¿Cuáles son las tasas y comisiones de la campaña?” (What are the campaign's rates and fees?). Review the proposed request and click **Confirm** (UI: **Confirmar**) or **Cancel** (UI: **Cancelar**). A receipt appears only after the request is saved and read back.
+3. Switch to Portuguese: “Quero consultar minhas contas de poupança” (I want to view my savings accounts) and “Quero falar com um assessor” (I want to speak with an advisor).
+4. “No quiero recibir publicidad” (I do not want to receive advertising) proposes a local preference. Confirming it excludes the customer from the operator's audience and preserves customer-requested service.
 
-Una solicitud `pending` está registrada en una cola simulada; no significa que un empleado resolvió el problema bancario.
+A `pending` request is recorded in a simulated queue; it does not mean an employee has resolved the banking issue.
 
-## Cómo funciona el código
+## How the code works
 
 ```mermaid
 flowchart LR
-  CSV[CSV del organizador] --> D1[Preparación día 1]
-  D1 --> D2[Cuentas, actividad y reglas]
-  D2 --> DATA[(SQLite de lectura)]
-  EX[Ejemplos sintéticos ES/PT] --> TRAIN[TF-IDF + softmax]
-  TRAIN --> MODEL[Modelo JSON]
-  YAML[config/intent.yaml] --> ROUTER[Proveedor de intenciones]
+  CSV[Organizer CSV files] --> D1[Day 1 preparation]
+  D1 --> D2[Accounts, activity and rules]
+  D2 --> DATA[(Read-only SQLite)]
+  EX[Synthetic ES/PT examples] --> TRAIN[TF-IDF + softmax]
+  TRAIN --> MODEL[JSON model]
+  YAML[config/intent.yaml] --> ROUTER[Intent provider]
   MODEL --> ROUTER
   CLEF[Clef 27B / Workers AI] --> ROUTER
-  UI[Interfaz] --> HTTP[Servidor local]
-  HTTP --> SERVICE[Sesión, contexto y permisos]
+  UI[Interface] --> HTTP[Local server]
+  HTTP --> SERVICE[Session, context and permissions]
   ROUTER --> SERVICE
   DATA --> SERVICE
-  SERVICE --> STATE[(Solicitudes y preferencias)]
-  CASES[Reserva y fallos] --> EVAL[Evaluación comparada]
+  SERVICE --> STATE[(Requests and preferences)]
+  CASES[Held-out set and failures] --> EVAL[Comparative evaluation]
   SERVICE --> EVAL
 ```
 
-| Archivo | Responsabilidad |
+| File | Responsibility |
 |---|---|
-| `config/project.json` | Alcance, reglas de selección, fecha y supuestos históricos |
-| `config/intent.yaml` | Selección TF-IDF/Clef, routing y umbrales de Clef |
-| `src/campaigns/configuration.py` | Carga y validación YAML; credenciales de Clef desde `.env` o entorno |
-| `src/campaigns/clef.py` | Adaptador REST de Clef 27B y validación de probabilidades |
-| `src/campaigns/prepare.py` | Clientes, campañas y envíos; contratos, calidad y origen |
-| `src/campaigns/phase2.py` | Cuentas, actividad y selección; recalcula todas las decisiones al verificar |
-| `src/campaigns/store.py` | Lecturas mínimas y rechazo de una base reemplazada hasta reiniciar |
-| `src/campaigns/intents.py` | Clasificador entrenado, baseline por palabras y combinación híbrida |
-| `src/campaigns/policy.py` | Permisos, consentimiento, fechas y frecuencia fuera del modelo |
-| `src/campaigns/service.py` | Conversación, respuestas fundamentadas, aclaraciones y acciones confirmadas |
-| `src/campaigns/operations.py` | Selección del operador, preparación confirmada, comprobantes y exportación local |
-| `src/campaigns/scenarios.py` | Elección reproducible de perfiles originales con condiciones distintas |
-| `src/campaigns/server.py` | HTTP local, validación de peticiones y asignación confiable de accesos |
-| `web/index.html` | Centro de campañas, ficha de cliente y atención contextual bilingüe |
-| `src/campaigns/evaluation.py` | Comparación reservada y comprobación de resultados persistidos |
+| `config/project.json` | Scope, selection rules, date, and historical assumptions |
+| `config/intent.yaml` | TF-IDF/Clef selection, routing, and Clef thresholds |
+| `src/campaigns/configuration.py` | YAML loading and validation; Clef credentials from `.env` or the environment |
+| `src/campaigns/clef.py` | Clef 27B REST adapter and probability validation |
+| `src/campaigns/prepare.py` | Customers, campaigns, and sends; contracts, quality, and provenance |
+| `src/campaigns/phase2.py` | Accounts, activity, and selection; recomputes all decisions during verification |
+| `src/campaigns/store.py` | Minimal reads and rejection of a replaced database until restart |
+| `src/campaigns/intents.py` | Trained classifier, keyword baseline, and hybrid combination |
+| `src/campaigns/policy.py` | Permissions, consent, dates, and frequency outside the model |
+| `src/campaigns/service.py` | Conversation, grounded responses, clarifications, and confirmed actions |
+| `src/campaigns/operations.py` | Operator selection, confirmed preparation, receipts, and local export |
+| `src/campaigns/scenarios.py` | Reproducible selection of original profiles with distinct conditions |
+| `src/campaigns/server.py` | Local HTTP, request validation, and trusted access assignment |
+| `web/index.html` | Campaign center, customer details, and bilingual contextual service |
+| `src/campaigns/evaluation.py` | Held-out comparison and verification of persisted outcomes |
 
-La consulta pasa primero por autenticación y permisos. El clasificador propone una intención; el flujo decide qué datos consultar. Las respuestas usan plantillas y registros permitidos. El modelo no concede permisos ni inventa condiciones financieras. Las respuestas y el contexto guardado conservan evidencia y eventos de herramientas.
+Queries first pass through authentication and permissions. The classifier suggests an intent; the workflow decides which data to query. Responses use templates and permitted records. The model neither grants permissions nor invents financial terms. Responses and saved context retain evidence and tool events.
 
-Una acción pendiente tiene una clave generada por el servidor. La confirmación vuelve a comprobar permisos y escribe dentro de una transacción SQLite. La lectura posterior verifica el resultado antes de anunciarlo. La idempotencia evita duplicar solicitudes al reintentar. Un fallo revierte la transacción y conserva el pendiente para reintento explícito.
+A pending action has a server-generated key. Confirmation rechecks permissions and writes within a SQLite transaction. A subsequent read verifies the outcome before announcing it. Idempotency prevents duplicate requests on retries. A failure rolls back the transaction and retains the pending action for an explicit retry.
 
-El traslado guarda solicitud, hechos comprobados, acciones, evidencia, preguntas pendientes y conversación. La baja de publicidad es una capa local sobre la audiencia preparada; no altera el dataset.
+A handoff saves the request, verified facts, actions, evidence, unresolved questions, and conversation. Advertising opt-out is a local layer over the prepared audience; it does not alter the dataset.
 
-La preparación de listas funciona sin conversación. `CampaignOperations` exige una sesión de operador, calcula todos los pares seleccionados y entrega una propuesta con firma de datos, configuración y destinatarios. Al confirmar, vuelve a calcular la audiencia, guarda lista y miembros, verifica sus identidades y metadatos, y publica el comprobante. Una baja posterior o un cambio de reglas invalida el comprobante para exportación (`needs_refresh`). Los reintentos con la misma clave devuelven el mismo lote, sin duplicarlo.
+List preparation works without conversation. `CampaignOperations` requires an operator session, computes all selected pairs, and returns a proposal with a signature covering data, configuration, and recipients. On confirmation, it recomputes the audience, saves the list and members, verifies their identities and metadata, and publishes the receipt. A subsequent opt-out or rule change invalidates the receipt for export (`needs_refresh`). Retries with the same key return the same batch without duplication.
 
-## Selección y datos
+## Selection and data
 
-La campaña `CMP-PHK8DTE4KLJO` es de reactivación, segmento Basic y canal Voice. El catálogo la marca `Completed`; una excepción explícita permite reproducirla dentro de su ventana. No hay prueba de su estado histórico real.
+Campaign `CMP-PHK8DTE4KLJO` targets reactivation, the Basic segment, and the Voice channel. The catalog marks it `Completed`; an explicit exception allows it to be reproduced within its window. There is no proof of its actual historical status.
 
-La regla exige al menos una cuenta coherente con estado `Active` en la instantánea, actividad aprobada conocida antes de la demo y ningún movimiento observable en los últimos 30 días. Registros recientes incoherentes o disponibles después de la demo bloquean esa cuenta. El criterio es por cuenta: otra cuenta reciente del mismo cliente no prueba ni descarta inactividad total.
+The rule requires at least one consistent account with `Active` status in the snapshot, known approved activity before the demo, and no observable transaction in the last 30 days. Inconsistent recent records or records available after the demo block that account. The criterion applies per account: another recently active account belonging to the same customer neither proves nor rules out total inactivity.
 
-El selector actual está diseñado para Reactivation. Cambiar el objetivo de campaña requiere definir y probar una nueva política; editar un campo de configuración no generaliza sus reglas.
+The current selector is designed for Reactivation. Changing the campaign objective requires defining and testing a new policy; editing a configuration field does not generalize its rules.
 
-Perfil y consentimiento son instantáneas; no existen todos sus eventos históricos. La disponibilidad se aproxima al día de procesamiento. Se excluyen eventos futuros y cuentas con fechas incoherentes. No se proyectan saldo, número de cuenta ni tasa del producto, cuya semántica histórica o unidad no está verificada.
+Profile and consent are snapshots; not all their historical events exist. Availability is approximated by the processing day. Future events and accounts with inconsistent dates are excluded. Balance, account number, and product rate are not projected because their historical semantics or units have not been verified.
 
-La audiencia tiene **2.021 pares candidatos entre 45.251 clientes de Colombia**. Los 1.148 del día 1 usaban otras reglas; la diferencia no mide una mejora comercial. Los motivos de exclusión se superponen.
+The audience contains **2,021 candidate pairs among 45,251 Colombian customers**. The 1,148 from day 1 used different rules; the difference does not measure a commercial improvement. Exclusion reasons overlap.
 
-La evidencia de demanda se reproduce con `python scripts/problem_evidence.py`: 686.296 interacciones en total y 123.990 de Colombia con fechas coherentes disponibles en la demo. Entre estas últimas hay 27.238 de categoría Producto, 9.894 Comercial y 43.394 marcadas para seguimiento. Esas categorías respaldan consultas y seguimiento bancario generales, sin probar demanda por esta campaña concreta. Las referencias `mentioned_products` no tienen dueño coherente al cruzarlas con productos; no se utilizan para afirmar demanda específica de ahorro. El alcance de ahorro se eligió por decisión del proyecto, catálogo y cuentas disponibles.
+Demand evidence can be reproduced with `python scripts/problem_evidence.py`: 686,296 interactions in total and 123,990 from Colombia with consistent dates available at the demo cutoff. Of the latter, 27,238 are in the Product category, 9,894 in Commercial, and 43,394 are flagged for follow-up. These categories support general banking queries and follow-up, without proving demand for this specific campaign. `mentioned_products` references lack consistent ownership when joined with products; they are not used to claim specific savings demand. The savings scope was chosen based on a project decision, the catalog, and available accounts.
 
-Las 171.321 transcripciones suministradas están en español y sólo tienen 546 textos distintos, con marcadores de plantilla. Esto justifica preparar ejemplos bilingües del equipo en lugar de tratar las transcripciones como etiquetas diversas y fiables. `outputs/problem_evidence/` conserva agregados, calidad y hashes de 2.196 archivos; no exporta conversaciones ni IDs individuales.
+The 171,321 supplied transcripts are in Spanish and contain only 546 distinct texts, with template markers. This justifies preparing team-authored bilingual examples rather than treating the transcripts as diverse, reliable labels. `outputs/problem_evidence/` retains aggregates, quality information, and hashes for 2,196 files; it does not export conversations or individual IDs.
 
-## Evaluación
+## Evaluation
 
-TF-IDF de palabras y caracteres alimenta una regresión softmax local. Hay 324 ejemplos de entrenamiento y 36 de desarrollo, con ES/PT juntos por familia. Vocabulario, IDF y pesos usan solo entrenamiento. Umbrales fijados con desarrollo: confianza 0,30, margen 0,10, cobertura léxica 0,08. El híbrido informa modelo, regla explícita o respaldo; sus resultados no se atribuyen íntegramente a ML.
+Word and character TF-IDF feeds a local softmax regression. There are 324 training examples and 36 development examples, with ES/PT kept together by family. Vocabulary, IDF, and weights use training data only. Thresholds set using development data: confidence 0.30, margin 0.10, lexical coverage 0.08. The hybrid reports whether it used the model, an explicit rule, or fallback; its results are not attributed entirely to ML.
 
-`scripts/evaluate.py` sigue comparando las tres variantes locales congeladas; no usa el proveedor del YAML ni llama a Clef. Las métricas históricas siguientes corresponden al modelo local. La integración de Clef necesita medir por separado calidad, latencia y costo antes de atribuirle esos resultados.
+`scripts/evaluate.py` continues to compare the three frozen local variants; it neither uses the YAML provider nor calls Clef. The following historical metrics correspond to the local model. The Clef integration requires separate quality, latency, and cost measurements before those results can be attributed to it.
 
-La reserva independiente del equipo tiene **48 casos, 24 familias bilingües**, congelados antes de comparar. Veinte casos tienen juicio específico de intención; los demás verifican políticas y fallos. Las etiquetas no están validadas por el banco. La separación por familias y texto exacto ayuda a prevenir fuga; no prueba independencia semántica absoluta.
+The team's independent held-out set contains **48 cases, 24 bilingual families**, frozen before comparison. Twenty cases have a specific intent judgment; the others check policies and failures. Labels have not been validated by the bank. Separation by family and exact text helps prevent leakage; it does not prove absolute semantic independence.
 
-La primera comparación midió intención baseline 80%, aprendido 85%, híbrido 90%. El flujo híbrido pasó **44/48**; esos fallos se conservan. Las correcciones posteriores del flujo pasaron **48/48 en regresión**, con clasificador y umbrales congelados. Esa repetición no es una nueva evaluación independiente.
+The first comparison measured intent accuracy of 80% for baseline, 85% for learned, and 90% for hybrid. The hybrid workflow passed **44/48**; those failures are preserved. Subsequent workflow corrections passed **48/48 in regression**, with the classifier and thresholds frozen. That repetition is not a new independent evaluation.
 
-La verificación global final pasó **79 pruebas**, incluidas 20 de selección, listas, fallos y HTTP y cinco de perfiles reproducibles. En regresión, el híbrido resolvió automáticamente 16/38 casos únicos dentro del alcance y realizó los 6/6 traslados requeridos. Los otros casos pueden pasar por una aclaración, rechazo o fallo controlado; 48/48 no significa que todos se resolvieron automáticamente. Se observaron cero resultados inseguros en 288 ejecuciones entre las tres variantes y sus repeticiones.
+Final overall verification passed **79 tests**, including 20 covering selection, lists, failures, and HTTP, and five covering reproducible profiles. In regression, the hybrid automatically resolved 16/38 unique in-scope cases and completed all 6/6 required handoffs. Other cases may pass through clarification, rejection, or controlled failure; 48/48 does not mean all were automatically resolved. Zero unsafe outcomes were observed in 288 runs across the three variants and their repetitions.
 
-| Evidencia | Uso |
+| Evidence | Use |
 |---|---|
-| `outputs/day1/` | Catálogo, calidad, selección básica y hashes |
-| `outputs/viability_review/` | Revisión adicional de datos completos |
-| `outputs/problem_evidence/` | Demanda por categorías, fechas y país; límites de referencias y lengua |
-| `outputs/phase2/` | Audiencia, SQLite, calidad y verificación completa |
-| `outputs/scenarios/` | Trece perfiles originales, condiciones esperadas y evidencia histórica |
-| `outputs/verification/requirements_http_review.json` | Revisión independiente de los trece accesos, datos y permisos HTTP |
-| `outputs/models/intent.json` | Pesos, separación, métricas y hashes |
-| `outputs/evaluation_first_final/` | Primera comparación preservada, incluidos fallos |
-| `outputs/evaluation/` | Regresión, resultados, transcripciones, latencia y costos |
-| `docs/final_requirements.json` | Requisitos del PDF; no declara cumplimiento por sí sola |
+| `outputs/day1/` | Catalog, quality, basic selection, and hashes |
+| `outputs/viability_review/` | Additional review of complete data |
+| `outputs/problem_evidence/` | Demand by category, date, and country; reference and language limitations |
+| `outputs/phase2/` | Audience, SQLite, quality, and full verification |
+| `outputs/scenarios/` | Thirteen original profiles, expected conditions, and historical evidence |
+| `outputs/verification/requirements_http_review.json` | Independent review of the thirteen logins, data, and HTTP permissions |
+| `outputs/models/intent.json` | Weights, splits, metrics, and hashes |
+| `outputs/evaluation_first_final/` | Preserved first comparison, including failures |
+| `outputs/evaluation/` | Regression, outcomes, transcripts, latency, and costs |
+| `docs/final_requirements.json` | PDF requirements; does not by itself declare compliance |
 
-Las métricas distinguen resolución automática segura sobre todos los casos dentro del alcance, automatización intentada, contención, calidad de traslado y resultados inseguros. Se ejecutan dos repeticiones y se informan muestras ES/PT y segmentos. Cero errores inseguros observados no implica riesgo cero. La latencia final suma todos los turnos de servicio del caso, con verificaciones internas; excluye preparación de fixtures y rúbrica, red bancaria y espera humana. La primera medición incluía sobrecarga de evaluación y no debe compararse con la corregida.
+Metrics distinguish safe automatic resolution across all in-scope cases, attempted automation, containment, handoff quality, and unsafe outcomes. Two repetitions are run, and ES/PT samples and segments are reported. Zero observed unsafe errors does not imply zero risk. Final latency sums all service turns in the case, including internal checks; it excludes fixture preparation and rubric assessment, the banking network, and human wait time. The first measurement included evaluation overhead and should not be compared with the corrected one.
 
-En la evaluación local, APIs externas cuestan USD 0; hardware, energía y operación local no están valorizados. Clef utiliza una API externa cuyo consumo depende de Workers AI. El costo por resolución es indefinido cuando no hay resoluciones. No se ha medido conversión, ahorro comercial ni mejora de producción.
+In the local evaluation, external APIs cost USD 0; hardware, energy, and local operations are not priced. Clef uses an external API whose consumption depends on Workers AI. Cost per resolution is undefined when there are no resolutions. Conversion, commercial savings, and production improvements have not been measured.
 
-## Actualización y operación
+## Updates and operation
 
-Detén el servidor antes de actualizar datos o reglas. Reconstruye y verifica día 1 si cambian clientes, campañas o envíos; fase 2 si cambian productos, transacciones o reglas del proyecto. Después ejecuta `scripts/build_scenarios.py` para actualizar el catálogo. Se comprueban hashes e inventarios. Las pruebas incluyen cargas repetidas, llegada tardía y claves contradictorias dentro/fuera del alcance. El archivo temporal se publica tras validar. Reinicia para cargar la versión nueva; las acciones pendientes de una versión anterior se rechazan. Si cambia la identidad asignada a un usuario de escenario, utiliza archivos de estado y credenciales nuevos; no reasignes un acceso existente a otro cliente.
+Stop the server before updating data or rules. Rebuild and verify day 1 if customers, campaigns, or sends change; rebuild and verify phase 2 if products, transactions, or project rules change. Then run `scripts/build_scenarios.py` to update the catalog. Hashes and inventories are checked. Tests include repeated loads, late arrivals, and conflicting keys inside and outside scope. The temporary file is published after validation. Restart to load the new version; pending actions from an earlier version are rejected. If the identity assigned to a scenario user changes, use new state and credential files; do not reassign an existing login to another customer.
 
-Es un único proceso local, con bloqueo para operaciones de estado; no se ha ensayado capacidad bancaria. Mensajes: hasta 2.000 caracteres. Sesiones: 30 minutos reales, independientes de la fecha histórica. Consultas SQL parametrizadas. Reintentos automáticos de herramientas: cero; el usuario puede reintentar explícitamente con la misma clave. Fallar nunca autoriza un envío.
+This is a single local process with locking for state operations; banking-scale capacity has not been tested. Messages: up to 2,000 characters. Sessions: 30 actual minutes, independent of the historical date. SQL queries are parameterized. Automatic tool retries: zero; users may explicitly retry with the same key. A failure never authorizes a send.
 
-Para operación real faltan identidad institucional, términos y políticas aprobados, revisión humana de etiquetas y reglas, integraciones autorizadas, TLS, gestión de secretos, monitoreo y pruebas de carga. La auditoría local registra acciones/resultados y la evaluación conserva tiempos/transcripciones. Con `tfidf` la inferencia es local. Con `clef` se envía a Cloudflare el mensaje que se clasifica y las descripciones de intenciones; el adaptador no adjunta cuentas, saldos, credenciales ni historial de conversación.
+Real operation still requires institutional identity, approved terms and policies, human review of labels and rules, authorized integrations, TLS, secret management, monitoring, and load testing. The local audit records actions/outcomes, and evaluation retains timings/transcripts. With `tfidf`, inference is local. With `clef`, the message being classified and intent descriptions are sent to Cloudflare; the adapter does not attach accounts, balances, credentials, or conversation history.
 
-Retención local: últimos 12 mensajes por conversación; las sesiones vencen en 30 minutos. Solicitudes, preferencias, listas y auditoría permanecen hasta eliminar el estado. Con el servidor detenido, archiva o elimina manualmente estado y credenciales tras los ensayos según las reglas del organizador. Esto elimina los registros locales, sin afectar los CSV. La operación real necesita una política de retención y borrado aprobada.
+Local retention: the last 12 messages per conversation; sessions expire after 30 minutes. Requests, preferences, lists, and audit records remain until state is deleted. With the server stopped, manually archive or delete state and credentials after trials according to the organizer's rules. This removes local records without affecting CSV files. Real operation requires an approved retention and deletion policy.

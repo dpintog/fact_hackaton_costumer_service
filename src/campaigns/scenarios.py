@@ -1,7 +1,7 @@
-"""Catálogo reproducible de perfiles presentes en el snapshot del proyecto.
+"""Reproducible catalog of profiles present in the project snapshot.
 
-Los perfiles amplían la inspección manual; no sustituyen la evaluación reservada
-ni representan una muestra estadística de todos los clientes.
+Profiles broaden manual inspection; they do not replace held-out evaluation
+or represent a statistical sample of all customers.
 """
 
 from collections import defaultdict
@@ -63,7 +63,7 @@ def _questions(scenario):
 
 
 def build_catalog(prepared_path, out):
-    """Elegir clientes originales distintos sin cambiar datos ni estado del servicio."""
+    """Choose distinct original customers without changing data or service state."""
     prepared_path, out = Path(prepared_path).resolve(), Path(out).resolve()
     if prepared_path == out or prepared_path in out.parents:
         raise ValueError("La salida debe ser un directorio separado de la base")

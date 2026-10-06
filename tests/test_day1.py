@@ -1,4 +1,4 @@
-"""Pruebas de límites temporales, permisos y reconstrucción con fixtures pequeñas."""
+"""Tests for temporal boundaries, permissions, and rebuilding with small fixtures."""
 
 import contextlib
 import copy
@@ -106,7 +106,7 @@ class PolicyTests(unittest.TestCase):
             customer(), self.campaign, self.config, {7: 1}))
         self.assertIn("frequency_limit_30d", customer_reasons(
             customer(), self.campaign, self.config, {30: 3}))
-        # Una etiqueta de conversión futura o inválida no cambia la frecuencia.
+        # A future or invalid conversion label does not change frequency.
         row = send(quality_flags=["conversion_not_after_send"], contact_quality_flags=[])
         self.assertEqual(1, contact_count([row], self.config, 7))
 

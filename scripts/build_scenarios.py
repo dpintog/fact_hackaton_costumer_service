@@ -1,4 +1,4 @@
-"""Construir perfiles verificables a partir de clientes originales del snapshot."""
+"""Build verifiable profiles from original customers in the snapshot."""
 
 import argparse
 import json
