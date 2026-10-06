@@ -1,4 +1,4 @@
-"""CLI del día 1: usa únicamente la biblioteca estándar de Python."""
+"""Day 1 CLI: uses only the Python standard library."""
 
 from pathlib import Path
 import sys

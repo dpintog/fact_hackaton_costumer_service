@@ -1,0 +1,138 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "location": { "type": "string", "defaultValue": "northcentralus" },
+    "appName": { "type": "string", "defaultValue": "ca-camps-ahorro" },
+    "environmentName": { "type": "string", "defaultValue": "managedEnvironment-factoredhackato-9435" },
+    "identityName": { "type": "string", "defaultValue": "id-ca-camps-ahorro-acrpull" },
+    "registryName": { "type": "string", "defaultValue": "crcampsahorro" },
+    "registryServer": { "type": "string", "defaultValue": "crcampsahorro.azurecr.io" },
+    "workspaceName": { "type": "string", "defaultValue": "workspacefactoredhackatondr8c2b" },
+    "vaultName": { "type": "string", "defaultValue": "kvcampsahorro" },
+    "publicOrigin": { "type": "string", "defaultValue": "https://ca-camps-ahorro.politedune-96575e92.northcentralus.azurecontainerapps.io" },
+    "accessCredentialsSecretName": { "type": "string", "defaultValue": "app-access-credentials" },
+    "dataContainer": { "type": "string", "defaultValue": "data" },
+    "dataPrefix": { "type": "string", "defaultValue": "" },
+    "storageAccount": { "type": "string", "defaultValue": "stlatambank" },
+    "image": { "type": "string" },
+    "targetPort": { "type": "int", "defaultValue": 8002 }
+  },
+  "variables": {
+    "usesPrivateRegistry": "[startsWith(parameters('image'), concat(parameters('registryServer'), '/'))]",
+    "identityId": "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities', parameters('identityName'))]",
+    "registryId": "[resourceId('Microsoft.ContainerRegistry/registries', parameters('registryName'))]",
+    "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces', parameters('workspaceName'))]",
+    "vaultId": "[resourceId('Microsoft.KeyVault/vaults', parameters('vaultName'))]",
+    "keyVaultSecretsUserRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '4633458b-17de-408a-b874-0445c86b69e6')]",
+    "keyVaultSecretsUserAssignmentName": "[guid(variables('vaultId'), variables('identityId'), variables('keyVaultSecretsUserRoleId'))]",
+    "acrPullRoleId": "[subscriptionResourceId('Microsoft.Authorization/roleDefinitions', '7f951dda-4ed3-4680-a7ca-43fe172d538d')]",
+    "acrPullAssignmentName": "[guid(variables('registryId'), variables('identityId'), variables('acrPullRoleId'))]"
+  },
+  "resources": [
+    {
+      "type": "Microsoft.ManagedIdentity/userAssignedIdentities",
+      "apiVersion": "2023-01-31",
+      "name": "[parameters('identityName')]",
+      "location": "[parameters('location')]"
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[variables('acrPullAssignmentName')]",
+      "scope": "[variables('registryId')]",
+      "dependsOn": ["[variables('identityId')]"],
+      "properties": {
+        "roleDefinitionId": "[variables('acrPullRoleId')]",
+        "principalId": "[reference(variables('identityId'), '2023-01-31').principalId]",
+        "principalType": "ServicePrincipal"
+      }
+    },
+    {
+      "type": "Microsoft.Authorization/roleAssignments",
+      "apiVersion": "2022-04-01",
+      "name": "[variables('keyVaultSecretsUserAssignmentName')]",
+      "scope": "[variables('vaultId')]",
+      "dependsOn": ["[variables('identityId')]"],
+      "properties": {
+        "roleDefinitionId": "[variables('keyVaultSecretsUserRoleId')]",
+        "principalId": "[reference(variables('identityId'), '2023-01-31').principalId]",
+        "principalType": "ServicePrincipal"
+      }
+    },
+    {
+      "type": "Microsoft.App/managedEnvironments",
+      "apiVersion": "2026-03-02-preview",
+      "name": "[parameters('environmentName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "environmentMode": "Express",
+        "appLogsConfiguration": {
+          "destination": "log-analytics",
+          "logAnalyticsConfiguration": {
+            "customerId": "[reference(variables('workspaceId'), '2020-08-01').customerId]",
+            "sharedKey": "[listKeys(variables('workspaceId'), '2020-08-01').primarySharedKey]"
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.App/containerApps",
+      "apiVersion": "2026-03-02-preview",
+      "name": "[parameters('appName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.App/managedEnvironments', parameters('environmentName'))]",
+        "[extensionResourceId(variables('registryId'), 'Microsoft.Authorization/roleAssignments', variables('acrPullAssignmentName'))]",
+        "[extensionResourceId(variables('vaultId'), 'Microsoft.Authorization/roleAssignments', variables('keyVaultSecretsUserAssignmentName'))]"
+      ],
+      "identity": {
+        "type": "UserAssigned",
+        "userAssignedIdentities": { "[variables('identityId')]": {} }
+      },
+      "properties": {
+        "environmentId": "[resourceId('Microsoft.App/managedEnvironments', parameters('environmentName'))]",
+        "configuration": {
+          "activeRevisionsMode": "Single",
+          "registries": "[if(variables('usesPrivateRegistry'), createArray(createObject('server', parameters('registryServer'), 'identity', variables('identityId'))), json('[]'))]",
+          "ingress": {
+            "external": true,
+            "targetPort": "[parameters('targetPort')]",
+            "transport": "http",
+            "allowInsecure": false
+          }
+        },
+        "template": {
+          "containers": [
+            {
+              "name": "simple-hello-world-container",
+              "env": [
+                { "name": "AZURE_KEY_VAULT_URL", "value": "[reference(variables('vaultId'), '2023-07-01').vaultUri]" },
+                { "name": "AZURE_CLIENT_ID", "value": "[reference(variables('identityId'), '2023-01-31').clientId]" },
+                { "name": "APP_PUBLIC_ORIGIN", "value": "[parameters('publicOrigin')]" },
+                { "name": "APP_ACCESS_CREDENTIALS_SECRET", "value": "[parameters('accessCredentialsSecretName')]" },
+                { "name": "APP_DATA_CONTAINER", "value": "[parameters('dataContainer')]" },
+                { "name": "APP_DATA_PREFIX", "value": "[parameters('dataPrefix')]" },
+                { "name": "APP_STORAGE_ACCOUNT", "value": "[parameters('storageAccount')]" }
+              ],
+              "image": "[parameters('image')]",
+              "resources": { "cpu": 2, "memory": "4Gi", "ephemeralStorage": "8Gi" },
+              "probes": [
+                { "type": "Liveness", "httpGet": { "path": "/healthz", "port": 8002 }, "initialDelaySeconds": 10, "periodSeconds": 30, "timeoutSeconds": 5, "failureThreshold": 5 }
+              ]
+            }
+          ],
+          "scale": { "minReplicas": 1, "maxReplicas": 1 }
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "appUrl": {
+      "type": "string",
+      "value": "[concat('https://', reference(resourceId('Microsoft.App/containerApps', parameters('appName')), '2026-03-02-preview').configuration.ingress.fqdn)]"
+    },
+    "registryPullIdentityId": { "type": "string", "value": "[variables('identityId')]" },
+    "keyVaultUri": { "type": "string", "value": "[reference(variables('vaultId'), '2023-07-01').vaultUri]" }
+  }
+}

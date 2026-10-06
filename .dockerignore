@@ -1,0 +1,15 @@
+**
+!Dockerfile
+!requirements.txt
+!src/
+!src/**
+!scripts/
+!scripts/serve.py
+!scripts/container_start.py
+!config/
+!config/*.json
+!config/*.yaml
+!web/
+!web/**
+**/__pycache__/
+**/*.pyc

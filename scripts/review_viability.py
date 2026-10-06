@@ -1,4 +1,4 @@
-"""Revisión agregada de las cuatro tablas incorporadas; no modifica datos ni audiencia."""
+"""Aggregate review of the four incorporated tables; does not modify data or audience."""
 
 from collections import Counter
 import argparse
@@ -34,7 +34,7 @@ def sha(path):
 
 
 def relationship_checks():
-    """Comprobar relaciones de negocio, además de la existencia de IDs."""
+    """Check business relationships as well as the existence of IDs."""
     customer = pd.read_csv(ROOT / "data/customers.csv", usecols=["customer_id", "registration_date"], dtype="string").set_index("customer_id")
     customer["registration_date"] = dates(customer["registration_date"])
     product = pd.read_csv(ROOT / "data/products.csv", usecols=["customer_id", "product_type", "product_status", "opening_date", "last_updated"], dtype="string")
@@ -267,7 +267,7 @@ def main(review_date="2026-10-02"):
     manifest = []
     for path in [ROOT / "data/products.csv", ROOT / "data/service_agents.csv", *tx_files, *survey_files]:
         manifest.append({"path": path.relative_to(ROOT).as_posix(), "bytes": path.stat().st_size, "sha256": sha(path)})
-    # Detectar si cambió alguna fuente original usada para la selección del día 1.
+    # Detect whether any original source used for day 1 selection has changed.
     previous = json.loads((ROOT / "outputs/day1/source_manifest.json").read_text(encoding="utf-8"))
     report["day1_original_audited_sources_changed"] = [p["path"] for p in previous if sha(ROOT / p["path"]) != p["sha256"]]
     report["scope_does_not_change_day1_audience"] = True
